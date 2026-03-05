@@ -13,21 +13,12 @@
 
 > 💡 Support clé API → Salon Tchap **Albert API - Support & retours utilisateurs**
 
-## 2 -Installation
-
-```bash
-curl -sSL https://raw.githubusercontent.com/simonaszilinskas/albert-code/main/scripts/install-albert.sh | bash
-```
-
-Le script installe tout et te demande ta clé API.
-
-<details><summary>Installation manuelle</summary>
+## 2 - Installation
 
 ```bash
 uv tool install "albert-code @ git+https://github.com/simonaszilinskas/albert-code"
 albert-code --api-key TA_CLE_API
 ```
-</details>
 
 ## 3 -Utilisation
 
