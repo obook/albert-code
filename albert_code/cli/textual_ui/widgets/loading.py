@@ -28,7 +28,7 @@ def _format_elapsed(seconds: int) -> str:
 
 
 class LoadingWidget(SpinnerMixin, Static):
-    TARGET_COLORS = ("#FFD800", "#FFAF00", "#FF8205", "#FA500F", "#E10500")
+    TARGET_COLORS = ("#a0a0ff", "#8585f8", "#6a6af4", "#5252e0", "#3b3bcc")
     SPINNER_TYPE = SpinnerType.SNAKE
 
     EASTER_EGGS: ClassVar[list[str]] = [

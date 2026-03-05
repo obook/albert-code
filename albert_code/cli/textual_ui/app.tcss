@@ -1,4 +1,4 @@
-$mistral_orange: #FF8205;
+$albert_blue: #6a6af4;
 
 * {
     scrollbar-color: ansi_black;
@@ -122,7 +122,7 @@ TextArea > .text-area--cursor {
 #prompt-spinner {
     width: auto;
     background: transparent;
-    color: $mistral_orange;
+    color: $albert_blue;
     text-style: bold;
     padding: 0 1 0 0;
 }
@@ -211,8 +211,8 @@ Markdown {
     height: auto;
     text-style: bold;
     padding-left: 1;
-    border-left: heavy $mistral_orange;
-    color: $mistral_orange;
+    border-left: heavy $albert_blue;
+    color: $albert_blue;
 }
 
 .assistant-message {
@@ -939,7 +939,7 @@ ContextProgress {
 }
 
 #banner-brand {
-    color: $mistral_orange;
+    color: $albert_blue;
     text-style: bold;
     width: auto;
 }
@@ -970,11 +970,11 @@ ContextProgress {
 
 .petit-chat {
     color: ansi_default;
-    width: 12;
+    width: 7;
 }
 
 .whats-new-message {
-    border-left: heavy $mistral_orange;
+    border-left: heavy $albert_blue;
     margin-bottom: 1;
 
     Markdown {
@@ -1003,7 +1003,7 @@ ContextProgress {
     link-style: none;
     link-background-hover: transparent;
     link-style-hover: underline;
-    link-color-hover: $mistral_orange;
+    link-color-hover: $albert_blue;
 }
 
 .whats-new-message.after-history {

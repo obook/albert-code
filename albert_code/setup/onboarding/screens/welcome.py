@@ -22,16 +22,16 @@ HIGHLIGHT_END = HIGHLIGHT_START + len(WELCOME_HIGHLIGHT)
 BUTTON_TEXT = "Press Enter ↵"
 
 GRADIENT_COLORS = [
-    "#ff6b00",
-    "#ff7b00",
-    "#ff8c00",
-    "#ff9d00",
-    "#ffae00",
-    "#ffbf00",
-    "#ffae00",
-    "#ff9d00",
-    "#ff8c00",
-    "#ff7b00",
+    "#4a4ae0",
+    "#5555e8",
+    "#6060f0",
+    "#6a6af4",
+    "#7a7aff",
+    "#8a8aff",
+    "#7a7aff",
+    "#6a6af4",
+    "#6060f0",
+    "#5555e8",
 ]
 
 
