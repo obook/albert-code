@@ -1,5 +1,7 @@
 # Albert Code 🇫🇷
 
+![Albert Code en cours d'utilisation dans le terminal](media/20260502_195508.png)
+
 **Assistant IA de programmation en ligne de commande, propulsé par l'API Albert.**
 
 > ⚠️ **Projet non officiel et expérimental.** Ce projet n'est affilié ni à la DINUM ni à Mistral AI. C'est un fork personnel de [Mistral Vibe](https://github.com/mistralai/mistral-vibe), adapté pour fonctionner avec l'[API Albert](https://albert.api.etalab.gouv.fr). Aucune garantie de stabilité ou de support.
