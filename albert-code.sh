@@ -12,6 +12,9 @@
 # Usage :
 #   ./albert-code.sh              -> lance albert-code dans le repertoire courant
 #   ./albert-code.sh --help       -> affiche l'aide d'albert-code
+#   ./albert-code.sh --install    -> installe le lien ~/.local/bin/albert-code
+#                                    (commande disponible globalement, cwd preserve)
+#   ./albert-code.sh --uninstall  -> retire le lien ~/.local/bin/albert-code
 #
 # Inspire de albert-cli/albert-cli.sh.
 #
@@ -25,6 +28,41 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
+SYMLINK_PATH="$HOME/.local/bin/albert-code"
+
+# ---- Sous-commandes d'installation / desinstallation du lien global ----
+case "${1:-}" in
+    --install)
+        mkdir -p "$(dirname "$SYMLINK_PATH")"
+        ln -sf "$SCRIPT_DIR/albert-code.sh" "$SYMLINK_PATH"
+        echo "Lien cree : $SYMLINK_PATH -> $SCRIPT_DIR/albert-code.sh"
+        case ":$PATH:" in
+            *":$HOME/.local/bin:"*)
+                echo "OK : ~/.local/bin est deja dans le PATH."
+                ;;
+            *)
+                echo
+                echo "Note : ~/.local/bin n'est pas dans ton PATH."
+                echo "Ajoute la ligne suivante a ton ~/.bashrc ou ~/.zshrc :"
+                echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+                echo "Puis ouvre un nouveau terminal."
+                ;;
+        esac
+        echo
+        echo "Tu peux maintenant lancer 'albert-code' depuis n'importe quel dossier."
+        echo "Le repertoire courant est utilise comme dossier de travail."
+        exit 0
+        ;;
+    --uninstall)
+        if [ -L "$SYMLINK_PATH" ] || [ -e "$SYMLINK_PATH" ]; then
+            rm -f "$SYMLINK_PATH"
+            echo "Lien supprime : $SYMLINK_PATH"
+        else
+            echo "Aucun lien trouve a $SYMLINK_PATH (deja desinstalle)."
+        fi
+        exit 0
+        ;;
+esac
 
 # Verifier que python3 est disponible
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
