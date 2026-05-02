@@ -17,7 +17,7 @@ async def test_ctrl_y_triggers_copy_selection() -> None:
     ) as mock_copy:
         async with app.run_test() as pilot:
             await pilot.press("ctrl+y")
-            mock_copy.assert_called_once_with(app, show_toast=False)
+            mock_copy.assert_called_once_with(app, show_toast=True)
 
 
 @pytest.mark.asyncio
@@ -30,7 +30,7 @@ async def test_ctrl_shift_c_triggers_copy_selection() -> None:
     ) as mock_copy:
         async with app.run_test() as pilot:
             await pilot.press("ctrl+shift+c")
-            mock_copy.assert_called_once_with(app, show_toast=False)
+            mock_copy.assert_called_once_with(app, show_toast=True)
 
 
 @pytest.mark.asyncio

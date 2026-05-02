@@ -8,6 +8,7 @@ import subprocess
 
 import pyperclip
 from textual.app import App
+from textual.widgets import TextArea
 
 _PREVIEW_MAX_LENGTH = 40
 
@@ -128,6 +129,12 @@ def _get_selected_texts(app: App) -> list[str]:
     selected_texts = []
 
     for widget in app.query("*"):
+        if isinstance(widget, TextArea):
+            selected_text = widget.selected_text
+            if selected_text and selected_text.strip():
+                selected_texts.append(selected_text)
+            continue
+
         if not hasattr(widget, "text_selection") or not widget.text_selection:
             continue
 

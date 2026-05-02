@@ -1683,7 +1683,7 @@ class VibeApp(App):  # noqa: PLR0904
         )
 
     def action_copy_selection(self) -> None:
-        copied_text = copy_selection_to_clipboard(self, show_toast=False)
+        copied_text = copy_selection_to_clipboard(self, show_toast=True)
         if copied_text is not None:
             self.agent_loop.telemetry_client.send_user_copied_text(copied_text)
 
