@@ -341,6 +341,18 @@ DEFAULT_MODELS = [
 ]
 
 
+def _strip_none(value: Any) -> Any:
+    """Return a copy of `value` with all None values removed, recursively.
+
+    Used before TOML serialization, since tomli_w refuses None.
+    """
+    if isinstance(value, dict):
+        return {k: _strip_none(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [_strip_none(v) for v in value if v is not None]
+    return value
+
+
 class VibeConfig(BaseSettings):
     active_model: str = "albert-code"
     vim_keybindings: bool = False
@@ -635,8 +647,14 @@ class VibeConfig(BaseSettings):
 
     @classmethod
     def dump_config(cls, config: dict[str, Any]) -> None:
+        # tomli_w cannot serialize Python None values, and Pydantic's
+        # `to_jsonable_python(exclude_none=True)` only drops Nones from
+        # Pydantic models, not from plain dicts that have already been
+        # produced via `model_dump()`. Strip them recursively here so that
+        # any Optional[...] field with a None default round-trips cleanly.
+        cleaned = _strip_none(to_jsonable_python(config, fallback=str))
         with CONFIG_FILE.path.open("wb") as f:
-            tomli_w.dump(config, f)
+            tomli_w.dump(cleaned, f)
 
     @classmethod
     def _migrate(cls) -> None:
