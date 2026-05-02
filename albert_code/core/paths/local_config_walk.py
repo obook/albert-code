@@ -4,7 +4,9 @@ from functools import cache
 import os
 from pathlib import Path
 
-from albert_code.core.autocompletion.file_indexer.ignore_rules import WALK_SKIP_DIR_NAMES
+from albert_code.core.autocompletion.file_indexer.ignore_rules import (
+    WALK_SKIP_DIR_NAMES,
+)
 
 _VIBE_DIR = ".albert-code"
 _TOOLS_SUBDIR = Path(_VIBE_DIR) / "tools"

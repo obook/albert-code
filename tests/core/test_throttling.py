@@ -78,9 +78,7 @@ class TestThrottler:
 
     @pytest.mark.asyncio
     async def test_acquire_no_op_when_quotas_unavailable(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        respx_mock: respx.MockRouter,
+        self, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.MockRouter
     ) -> None:
         monkeypatch.setenv("TEST_KEY", "secret")
         respx_mock.get("http://test/v1/me/info").mock(
@@ -92,19 +90,12 @@ class TestThrottler:
 
     @pytest.mark.asyncio
     async def test_acquire_sleeps_when_rpm_threshold_reached(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        respx_mock: respx.MockRouter,
+        self, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.MockRouter
     ) -> None:
         monkeypatch.setenv("TEST_KEY", "secret")
         respx_mock.get("http://test/v1/me/info").mock(
             return_value=httpx.Response(
-                200,
-                json={
-                    "limits": [
-                        {"router": 0, "type": "rpm", "value": 10},
-                    ]
-                },
+                200, json={"limits": [{"router": 0, "type": "rpm", "value": 10}]}
             )
         )
         clock = FakeClock()
@@ -115,10 +106,7 @@ class TestThrottler:
             clock.advance(seconds)
 
         throttler = Throttler(
-            _make_provider(),
-            threshold=0.8,
-            clock=clock,
-            sleep=fake_sleep,
+            _make_provider(), threshold=0.8, clock=clock, sleep=fake_sleep
         )
 
         # Saturate the window: 8 calls = exactly the 80% threshold
@@ -131,15 +119,12 @@ class TestThrottler:
 
     @pytest.mark.asyncio
     async def test_acquire_skips_sleep_below_threshold(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        respx_mock: respx.MockRouter,
+        self, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.MockRouter
     ) -> None:
         monkeypatch.setenv("TEST_KEY", "secret")
         respx_mock.get("http://test/v1/me/info").mock(
             return_value=httpx.Response(
-                200,
-                json={"limits": [{"router": 0, "type": "rpm", "value": 100}]},
+                200, json={"limits": [{"router": 0, "type": "rpm", "value": 100}]}
             )
         )
         sleep_calls: list[float] = []
@@ -157,15 +142,12 @@ class TestThrottler:
 
     @pytest.mark.asyncio
     async def test_records_token_usage(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        respx_mock: respx.MockRouter,
+        self, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.MockRouter
     ) -> None:
         monkeypatch.setenv("TEST_KEY", "secret")
         respx_mock.get("http://test/v1/me/info").mock(
             return_value=httpx.Response(
-                200,
-                json={"limits": [{"router": 0, "type": "tpm", "value": 100}]},
+                200, json={"limits": [{"router": 0, "type": "tpm", "value": 100}]}
             )
         )
         clock = FakeClock()
@@ -252,6 +234,10 @@ class TestThrottlerAutoFallback:
         throttler.record_rate_limit(model_alias="albert-code")
         throttler.record_rate_limit(model_alias="albert-code")
         throttler.should_fallback("albert-code")  # arm
-        assert throttler.fallback_remaining_seconds("albert-code") == pytest.approx(60.0)
+        assert throttler.fallback_remaining_seconds("albert-code") == pytest.approx(
+            60.0
+        )
         clock.advance(20.0)
-        assert throttler.fallback_remaining_seconds("albert-code") == pytest.approx(40.0)
+        assert throttler.fallback_remaining_seconds("albert-code") == pytest.approx(
+            40.0
+        )

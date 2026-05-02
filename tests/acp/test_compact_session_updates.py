@@ -7,11 +7,11 @@ from unittest.mock import patch
 from acp.schema import TextContentBlock, ToolCallProgress, ToolCallStart
 import pytest
 
+from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
+from albert_code.core.agent_loop import AgentLoop
 from tests.conftest import build_test_vibe_config
 from tests.stubs.fake_backend import FakeBackend
 from tests.stubs.fake_client import FakeClient
-from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
-from albert_code.core.agent_loop import AgentLoop
 
 
 @pytest.fixture

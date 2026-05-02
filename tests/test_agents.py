@@ -4,9 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import build_test_agent_loop, build_test_vibe_config
-from tests.mock.utils import mock_llm_chunk
-from tests.stubs.fake_backend import FakeBackend
 from albert_code.core.agents.manager import AgentManager
 from albert_code.core.agents.models import (
     BUILTIN_AGENTS,
@@ -30,6 +27,9 @@ from albert_code.core.types import (
     ToolCall,
     ToolResultEvent,
 )
+from tests.conftest import build_test_agent_loop, build_test_vibe_config
+from tests.mock.utils import mock_llm_chunk
+from tests.stubs.fake_backend import FakeBackend
 
 
 class TestDeepMerge:
@@ -190,7 +190,8 @@ class TestAgentApplyToConfig:
             "albert_code.core.config.PROMPTS_DIR", ConfigPath(lambda: project_prompts)
         )
         monkeypatch.setattr(
-            "albert_code.core.config.GLOBAL_PROMPTS_DIR", GlobalPath(lambda: global_prompts)
+            "albert_code.core.config.GLOBAL_PROMPTS_DIR",
+            GlobalPath(lambda: global_prompts),
         )
 
         base = VibeConfig(include_project_context=False, include_prompt_detail=False)
@@ -581,7 +582,8 @@ class TestAgentLoopInitialization:
             "albert_code.core.config.PROMPTS_DIR", ConfigPath(lambda: project_prompts)
         )
         monkeypatch.setattr(
-            "albert_code.core.config.GLOBAL_PROMPTS_DIR", GlobalPath(lambda: global_prompts)
+            "albert_code.core.config.GLOBAL_PROMPTS_DIR",
+            GlobalPath(lambda: global_prompts),
         )
 
         custom_agent = AgentProfile(
@@ -592,8 +594,12 @@ class TestAgentLoopInitialization:
             overrides={"system_prompt_id": "custom_agent"},
         )
         patched_agents = {**BUILTIN_AGENTS, "custom_test_agent": custom_agent}
-        monkeypatch.setattr("albert_code.core.agents.models.BUILTIN_AGENTS", patched_agents)
-        monkeypatch.setattr("albert_code.core.agents.manager.BUILTIN_AGENTS", patched_agents)
+        monkeypatch.setattr(
+            "albert_code.core.agents.models.BUILTIN_AGENTS", patched_agents
+        )
+        monkeypatch.setattr(
+            "albert_code.core.agents.manager.BUILTIN_AGENTS", patched_agents
+        )
 
         config = build_test_vibe_config(
             include_project_context=False, include_prompt_detail=False

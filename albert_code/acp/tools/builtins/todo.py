@@ -26,7 +26,9 @@ class AcpTodoState(TodoState, AcpToolState):
 
 class Todo(CoreTodoTool, BaseAcpTool[AcpTodoState]):
     state: AcpTodoState
-    prompt_path = ALBERT_CODE_ROOT / "core" / "tools" / "builtins" / "prompts" / "todo.md"
+    prompt_path = (
+        ALBERT_CODE_ROOT / "core" / "tools" / "builtins" / "prompts" / "todo.md"
+    )
 
     @classmethod
     def _get_tool_state_class(cls) -> type[AcpTodoState]:

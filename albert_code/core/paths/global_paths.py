@@ -33,7 +33,9 @@ GLOBAL_SKILLS_DIR = GlobalPath(lambda: ALBERT_CODE_HOME.path / "skills")
 GLOBAL_AGENTS_DIR = GlobalPath(lambda: ALBERT_CODE_HOME.path / "agents")
 GLOBAL_PROMPTS_DIR = GlobalPath(lambda: ALBERT_CODE_HOME.path / "prompts")
 SESSION_LOG_DIR = GlobalPath(lambda: ALBERT_CODE_HOME.path / "logs" / "session")
-TRUSTED_FOLDERS_FILE = GlobalPath(lambda: ALBERT_CODE_HOME.path / "trusted_folders.toml")
+TRUSTED_FOLDERS_FILE = GlobalPath(
+    lambda: ALBERT_CODE_HOME.path / "trusted_folders.toml"
+)
 LOG_DIR = GlobalPath(lambda: ALBERT_CODE_HOME.path / "logs")
 LOG_FILE = GlobalPath(lambda: ALBERT_CODE_HOME.path / "logs" / "albert-code.log")
 

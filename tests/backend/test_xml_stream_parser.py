@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import json
 
-from albert_code.core.llm.backend.generic import (
-    OpenAIAdapter,
-    XmlToolCallStreamParser,
-)
+from albert_code.core.llm.backend.generic import OpenAIAdapter, XmlToolCallStreamParser
 
 
 def _make_parser() -> XmlToolCallStreamParser:
@@ -42,10 +39,26 @@ class TestXmlToolCallStreamParserStreamedToolCall:
 
         # Pattern observed against Albert/Qwen on /v1/chat/completions
         chunks = [
-            "<tool_call>", "\n", "<", "function", "=read",
-            "_file", ">\n", "<", "parameter", "=path",
-            ">\n", "README", ".md", "\n", "</",
-            "parameter", ">\n", "</", "function", ">\n",
+            "<tool_call>",
+            "\n",
+            "<",
+            "function",
+            "=read",
+            "_file",
+            ">\n",
+            "<",
+            "parameter",
+            "=path",
+            ">\n",
+            "README",
+            ".md",
+            "\n",
+            "</",
+            "parameter",
+            ">\n",
+            "</",
+            "function",
+            ">\n",
             "</tool_call>",
         ]
 

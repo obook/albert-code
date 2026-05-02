@@ -172,7 +172,9 @@ class TodoFocusMiddleware:
         if not todos:
             return MiddlewareResult()
 
-        unfinished = [t for t in todos if t.status.value not in {"completed", "cancelled"}]
+        unfinished = [
+            t for t in todos if t.status.value not in {"completed", "cancelled"}
+        ]
         if not unfinished:
             return MiddlewareResult()
 
@@ -191,8 +193,7 @@ class TodoFocusMiddleware:
         lines.append(f"</{VIBE_FOCUS_TAG}>")
 
         return MiddlewareResult(
-            action=MiddlewareAction.INJECT_MESSAGE,
-            message="\n".join(lines),
+            action=MiddlewareAction.INJECT_MESSAGE, message="\n".join(lines)
         )
 
     def reset(self, reset_reason: ResetReason = ResetReason.STOP) -> None:

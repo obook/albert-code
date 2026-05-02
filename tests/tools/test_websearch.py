@@ -5,9 +5,13 @@ from unittest.mock import AsyncMock, patch
 import mistralai
 import pytest
 
-from tests.mock.utils import collect_result
 from albert_code.core.tools.base import BaseToolState, ToolError
-from albert_code.core.tools.builtins.websearch import WebSearch, WebSearchArgs, WebSearchConfig
+from albert_code.core.tools.builtins.websearch import (
+    WebSearch,
+    WebSearchArgs,
+    WebSearchConfig,
+)
+from tests.mock.utils import collect_result
 
 
 def _make_response(

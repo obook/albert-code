@@ -12,14 +12,14 @@ from acp.schema import (
 )
 import pytest
 
-from tests.conftest import build_test_vibe_config
-from tests.stubs.fake_backend import FakeBackend
-from tests.stubs.fake_client import FakeClient
 from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
 from albert_code.core.agent_loop import AgentLoop
 from albert_code.core.agents.models import BuiltinAgentName
 from albert_code.core.config import ModelConfig, SessionLoggingConfig
 from albert_code.core.types import Role
+from tests.conftest import build_test_vibe_config
+from tests.stubs.fake_backend import FakeBackend
+from tests.stubs.fake_client import FakeClient
 
 
 @pytest.fixture

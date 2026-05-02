@@ -8,12 +8,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from tests.conftest import build_test_vibe_config
 from albert_code.core.agents.models import AgentProfile, AgentSafety
 from albert_code.core.config import SessionLoggingConfig, VibeConfig
 from albert_code.core.session.session_logger import SessionLogger
 from albert_code.core.tools.manager import ToolManager
 from albert_code.core.types import AgentStats, LLMMessage, Role, SessionMetadata
+from tests.conftest import build_test_vibe_config
 
 
 @pytest.fixture

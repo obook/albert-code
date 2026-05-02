@@ -5,13 +5,13 @@ from unittest.mock import patch
 
 from textual.pilot import Pilot
 
+from albert_code.cli.update_notifier import Update
 from tests.snapshots.base_snapshot_test_app import BaseSnapshotTestApp, default_config
 from tests.snapshots.snap_compare import SnapCompare
 from tests.update_notifier.adapters.fake_update_cache_repository import (
     FakeUpdateCacheRepository,
 )
 from tests.update_notifier.adapters.fake_update_gateway import FakeUpdateGateway
-from albert_code.cli.update_notifier import Update
 
 
 class SnapshotTestAppWithUpdate(BaseSnapshotTestApp):

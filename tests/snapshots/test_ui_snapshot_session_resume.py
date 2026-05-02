@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from textual.pilot import Pilot
 
+from albert_code.core.types import FunctionCall, LLMMessage, Role, ToolCall
 from tests.snapshots.base_snapshot_test_app import BaseSnapshotTestApp
 from tests.snapshots.snap_compare import SnapCompare
-from albert_code.core.types import FunctionCall, LLMMessage, Role, ToolCall
 
 
 class SnapshotTestAppWithResumedSession(BaseSnapshotTestApp):

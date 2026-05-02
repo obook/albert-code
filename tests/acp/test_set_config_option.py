@@ -5,12 +5,12 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.acp.conftest import _create_acp_agent
-from tests.conftest import build_test_vibe_config
 from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
 from albert_code.core.agent_loop import AgentLoop
 from albert_code.core.agents.models import BuiltinAgentName
 from albert_code.core.config import ModelConfig, VibeConfig
+from tests.acp.conftest import _create_acp_agent
+from tests.conftest import build_test_vibe_config
 
 
 @pytest.fixture
@@ -49,7 +49,9 @@ def acp_agent_loop(backend) -> VibeAcpAgentLoop:
             except ValueError:
                 pass
 
-    patch("albert_code.acp.acp_agent_loop.AgentLoop", side_effect=PatchedAgentLoop).start()
+    patch(
+        "albert_code.acp.acp_agent_loop.AgentLoop", side_effect=PatchedAgentLoop
+    ).start()
 
     return _create_acp_agent()
 
@@ -229,7 +231,9 @@ class TestACPSetConfigOptionModel:
         )
         session_id = session_response.session_id
 
-        with patch("albert_code.acp.acp_agent_loop.VibeConfig.save_updates") as mock_save:
+        with patch(
+            "albert_code.acp.acp_agent_loop.VibeConfig.save_updates"
+        ) as mock_save:
             response = await acp_agent_loop.set_config_option(
                 session_id=session_id, config_id="model", value="devstral-small"
             )
@@ -246,7 +250,9 @@ class TestACPSetConfigOptionModel:
         )
         session_id = session_response.session_id
 
-        with patch("albert_code.acp.acp_agent_loop.VibeConfig.save_updates") as mock_save:
+        with patch(
+            "albert_code.acp.acp_agent_loop.VibeConfig.save_updates"
+        ) as mock_save:
             response = await acp_agent_loop.set_config_option(
                 session_id=session_id, config_id="model", value="non-existent-model"
             )

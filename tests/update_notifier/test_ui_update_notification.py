@@ -9,11 +9,6 @@ from unittest.mock import patch
 import pytest
 from textual.app import Notification
 
-from tests.conftest import build_test_vibe_app, build_test_vibe_config
-from tests.update_notifier.adapters.fake_update_cache_repository import (
-    FakeUpdateCacheRepository,
-)
-from tests.update_notifier.adapters.fake_update_gateway import FakeUpdateGateway
 from albert_code.cli.textual_ui.app import VibeApp
 from albert_code.cli.textual_ui.widgets.messages import WhatsNewMessage
 from albert_code.cli.update_notifier import (
@@ -25,6 +20,11 @@ from albert_code.cli.update_notifier import (
     UpdateGatewayError,
 )
 from albert_code.core.config import VibeConfig
+from tests.conftest import build_test_vibe_app, build_test_vibe_config
+from tests.update_notifier.adapters.fake_update_cache_repository import (
+    FakeUpdateCacheRepository,
+)
+from tests.update_notifier.adapters.fake_update_gateway import FakeUpdateGateway
 
 TEST_CURRENT_VERSION = "0.1.0"
 

@@ -9,9 +9,6 @@ from unittest.mock import AsyncMock, Mock
 import httpx
 import pytest
 
-from tests.conftest import build_test_agent_loop, build_test_vibe_config
-from tests.mock.utils import mock_llm_chunk
-from tests.stubs.fake_backend import FakeBackend
 from albert_code.core.agents.models import BuiltinAgentName
 from albert_code.core.config import VibeConfig
 from albert_code.core.llm.exceptions import BackendErrorBuilder
@@ -37,6 +34,9 @@ from albert_code.core.types import (
     UserMessageEvent,
 )
 from albert_code.core.utils import CancellationReason, get_user_cancellation_message
+from tests.conftest import build_test_agent_loop, build_test_vibe_config
+from tests.mock.utils import mock_llm_chunk
+from tests.stubs.fake_backend import FakeBackend
 
 
 class InjectBeforeMiddleware:

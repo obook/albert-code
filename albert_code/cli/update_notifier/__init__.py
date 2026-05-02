@@ -3,8 +3,12 @@ from __future__ import annotations
 from albert_code.cli.update_notifier.adapters.filesystem_update_cache_repository import (
     FileSystemUpdateCacheRepository,
 )
-from albert_code.cli.update_notifier.adapters.github_update_gateway import GitHubUpdateGateway
-from albert_code.cli.update_notifier.adapters.pypi_update_gateway import PyPIUpdateGateway
+from albert_code.cli.update_notifier.adapters.github_update_gateway import (
+    GitHubUpdateGateway,
+)
+from albert_code.cli.update_notifier.adapters.pypi_update_gateway import (
+    PyPIUpdateGateway,
+)
 from albert_code.cli.update_notifier.ports.update_cache_repository import (
     UpdateCache,
     UpdateCacheRepository,

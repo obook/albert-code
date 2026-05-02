@@ -4,7 +4,10 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from albert_code.cli.textual_ui.widgets.compact import CompactMessage
-from albert_code.cli.textual_ui.widgets.messages import AssistantMessage, ReasoningMessage
+from albert_code.cli.textual_ui.widgets.messages import (
+    AssistantMessage,
+    ReasoningMessage,
+)
 from albert_code.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
 from albert_code.cli.textual_ui.widgets.tools import ToolCallMessage, ToolResultMessage
 from albert_code.core.tools.ui import ToolUIDataAdapter

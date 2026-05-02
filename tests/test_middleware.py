@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from tests.conftest import build_test_agent_loop, build_test_vibe_config
-from albert_code.core.agents.models import BUILTIN_AGENTS, CHAT, AgentProfile, BuiltinAgentName
+from albert_code.core.agents.models import (
+    BUILTIN_AGENTS,
+    CHAT,
+    AgentProfile,
+    BuiltinAgentName,
+)
 from albert_code.core.config import VibeConfig
 from albert_code.core.middleware import (
     CHAT_AGENT_EXIT,
@@ -17,6 +21,7 @@ from albert_code.core.middleware import (
     ResetReason,
 )
 from albert_code.core.types import AgentStats, MessageList
+from tests.conftest import build_test_agent_loop, build_test_vibe_config
 
 REMINDER = "test reminder"
 EXIT_MSG = "test exit"

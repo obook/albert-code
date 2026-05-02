@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from tests.conftest import build_test_agent_loop, build_test_vibe_config
-from tests.mock.utils import mock_llm_chunk
-from tests.stubs.fake_backend import FakeBackend
 from albert_code.core.types import (
     AssistantEvent,
     CompactEndEvent,
@@ -13,6 +10,9 @@ from albert_code.core.types import (
     Role,
     UserMessageEvent,
 )
+from tests.conftest import build_test_agent_loop, build_test_vibe_config
+from tests.mock.utils import mock_llm_chunk
+from tests.stubs.fake_backend import FakeBackend
 
 
 @pytest.mark.asyncio

@@ -11,7 +11,10 @@ from textual.widget import Widget
 from textual.widgets import Static
 
 from albert_code.cli.history_manager import HistoryManager
-from albert_code.cli.textual_ui.widgets.chat_input.text_area import ChatTextArea, InputMode
+from albert_code.cli.textual_ui.widgets.chat_input.text_area import (
+    ChatTextArea,
+    InputMode,
+)
 from albert_code.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
 from albert_code.cli.textual_ui.widgets.spinner import SpinnerMixin, SpinnerType
 

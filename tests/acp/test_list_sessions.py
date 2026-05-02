@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.acp.conftest import _create_acp_agent
 from albert_code.core.config import MissingAPIKeyError, SessionLoggingConfig
+from tests.acp.conftest import _create_acp_agent
 
 
 class TestListSessions:

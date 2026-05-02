@@ -10,7 +10,10 @@ from rich import print as rprint
 from albert_code import __version__
 from albert_code.core.agents.models import BuiltinAgentName
 from albert_code.core.paths.config_paths import unlock_config_paths
-from albert_code.core.trusted_folders import has_trustable_content, trusted_folders_manager
+from albert_code.core.trusted_folders import (
+    has_trustable_content,
+    trusted_folders_manager,
+)
 from albert_code.setup.trusted_folders.trust_folder_dialog import (
     TrustDialogQuitException,
     ask_trust_folder,

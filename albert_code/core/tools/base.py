@@ -28,7 +28,11 @@ from albert_code.core.types import ToolStreamEvent
 if TYPE_CHECKING:
     from albert_code.core.agents.manager import AgentManager
     from albert_code.core.tools.mcp_sampling import MCPSamplingHandler
-    from albert_code.core.types import ApprovalCallback, EntrypointMetadata, UserInputCallback
+    from albert_code.core.types import (
+        ApprovalCallback,
+        EntrypointMetadata,
+        UserInputCallback,
+    )
 
 ARGS_COUNT = 4
 

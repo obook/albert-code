@@ -5,7 +5,6 @@ import time
 import pytest
 from textual.widgets import Button
 
-from tests.conftest import build_test_agent_loop
 from albert_code.cli.textual_ui.app import ChatScroll, VibeApp
 from albert_code.cli.textual_ui.widgets.load_more import (
     HistoryLoadMoreMessage,
@@ -18,6 +17,7 @@ from albert_code.cli.textual_ui.windowing import (
 )
 from albert_code.core.config import SessionLoggingConfig, VibeConfig
 from albert_code.core.types import LLMMessage, Role
+from tests.conftest import build_test_agent_loop
 
 
 @pytest.fixture
@@ -25,8 +25,6 @@ def vibe_config() -> VibeConfig:
     return VibeConfig(
         session_logging=SessionLoggingConfig(enabled=False), enable_update_checks=False
     )
-
-
 
 
 async def _wait_until(pause, predicate, timeout: float = 2.0) -> None:

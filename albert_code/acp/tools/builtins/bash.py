@@ -15,7 +15,11 @@ from albert_code import ALBERT_CODE_ROOT
 from albert_code.acp.tools.base import AcpToolState, BaseAcpTool
 from albert_code.core.logger import logger
 from albert_code.core.tools.base import BaseToolState, InvokeContext, ToolError
-from albert_code.core.tools.builtins.bash import Bash as CoreBashTool, BashArgs, BashResult
+from albert_code.core.tools.builtins.bash import (
+    Bash as CoreBashTool,
+    BashArgs,
+    BashResult,
+)
 from albert_code.core.types import ToolCallEvent, ToolResultEvent, ToolStreamEvent
 
 
@@ -24,7 +28,9 @@ class AcpBashState(BaseToolState, AcpToolState):
 
 
 class Bash(CoreBashTool, BaseAcpTool[AcpBashState]):
-    prompt_path = ALBERT_CODE_ROOT / "core" / "tools" / "builtins" / "prompts" / "bash.md"
+    prompt_path = (
+        ALBERT_CODE_ROOT / "core" / "tools" / "builtins" / "prompts" / "bash.md"
+    )
     state: AcpBashState
 
     @classmethod

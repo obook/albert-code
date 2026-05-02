@@ -19,9 +19,9 @@ from albert_code.core.paths.config_paths import unlock_config_paths
 if __name__ == "__main__":
     unlock_config_paths()
 
+    from albert_code.core.types import LLMChunk
     from tests import TESTS_ROOT
     from tests.mock.utils import MOCK_DATA_ENV_VAR
-    from albert_code.core.types import LLMChunk
 
     sys.path.insert(0, str(TESTS_ROOT))
 

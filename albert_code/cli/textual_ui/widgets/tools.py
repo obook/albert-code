@@ -4,7 +4,10 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Static
 
-from albert_code.cli.textual_ui.widgets.messages import ExpandingBorder, NonSelectableStatic
+from albert_code.cli.textual_ui.widgets.messages import (
+    ExpandingBorder,
+    NonSelectableStatic,
+)
 from albert_code.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
 from albert_code.cli.textual_ui.widgets.status_message import StatusMessage
 from albert_code.cli.textual_ui.widgets.tool_widgets import get_result_widget

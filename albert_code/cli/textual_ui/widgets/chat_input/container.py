@@ -15,7 +15,9 @@ from albert_code.cli.textual_ui.widgets.chat_input.body import ChatInputBody
 from albert_code.cli.textual_ui.widgets.chat_input.completion_manager import (
     MultiCompletionManager,
 )
-from albert_code.cli.textual_ui.widgets.chat_input.completion_popup import CompletionPopup
+from albert_code.cli.textual_ui.widgets.chat_input.completion_popup import (
+    CompletionPopup,
+)
 from albert_code.cli.textual_ui.widgets.chat_input.text_area import ChatTextArea
 from albert_code.core.agents import AgentSafety
 from albert_code.core.autocompletion.completers import CommandCompleter, PathCompleter

@@ -17,7 +17,10 @@ from albert_code.core.teleport.errors import (
 )
 from albert_code.core.teleport.git import GitRepoInfo
 from albert_code.core.teleport.nuage import TeleportSession
-from albert_code.core.teleport.teleport import _NUAGE_EXECUTION_URL_TEMPLATE, TeleportService
+from albert_code.core.teleport.teleport import (
+    _NUAGE_EXECUTION_URL_TEMPLATE,
+    TeleportService,
+)
 from albert_code.core.teleport.types import (
     TeleportAuthCompleteEvent,
     TeleportAuthRequiredEvent,

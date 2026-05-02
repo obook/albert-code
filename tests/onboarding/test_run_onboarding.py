@@ -57,4 +57,7 @@ def test_successfully_completes(
     onboarding.run_onboarding(StubApp("completed"))
 
     out = capsys.readouterr().out
-    assert 'Setup complete 🎉. Run "albert_code" to start using the Albert Code CLI.' in out
+    assert (
+        'Setup complete 🎉. Run "albert_code" to start using the Albert Code CLI.'
+        in out
+    )

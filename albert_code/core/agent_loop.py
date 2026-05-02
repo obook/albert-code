@@ -315,9 +315,7 @@ class AgentLoop:
         if not throttler.should_fallback(primary.alias):
             if previous_alias != primary.alias:
                 self._notify_fallback(
-                    "restored",
-                    f"Fallback expired, back to {primary.alias}",
-                    0.0,
+                    "restored", f"Fallback expired, back to {primary.alias}", 0.0
                 )
             self._last_resolved_model_alias = primary.alias
             return primary
@@ -573,9 +571,8 @@ class AgentLoop:
                 if user_cancelled:
                     return
 
-                if (
-                    should_break_loop
-                    and self._should_auto_continue(last_message, auto_continue_count)
+                if should_break_loop and self._should_auto_continue(
+                    last_message, auto_continue_count
                 ):
                     auto_continue_count += 1
                     self._append_auto_continue_message()
@@ -586,9 +583,7 @@ class AgentLoop:
 
     _MAX_AUTO_CONTINUE_PER_USER_INPUT = 3
 
-    def _should_auto_continue(
-        self, last_message: LLMMessage, count: int
-    ) -> bool:
+    def _should_auto_continue(self, last_message: LLMMessage, count: int) -> bool:
         """Decide whether to auto-prompt the agent to keep going.
 
         Returns True only if:
@@ -601,7 +596,8 @@ class AgentLoop:
         if last_message.role != Role.assistant:
             return False
         unfinished = [
-            t for t in self._snapshot_todos()
+            t
+            for t in self._snapshot_todos()
             if getattr(t, "status", None) is not None
             and t.status.value not in {"completed", "cancelled"}
         ]

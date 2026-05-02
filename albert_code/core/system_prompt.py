@@ -11,7 +11,10 @@ import time
 from typing import TYPE_CHECKING
 
 from albert_code.core.prompts import UtilityPrompt
-from albert_code.core.trusted_folders import AGENTS_MD_FILENAMES, trusted_folders_manager
+from albert_code.core.trusted_folders import (
+    AGENTS_MD_FILENAMES,
+    trusted_folders_manager,
+)
 from albert_code.core.utils import is_dangerous_directory, is_windows
 
 if TYPE_CHECKING:

@@ -5,12 +5,12 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.acp.conftest import _create_acp_agent
-from tests.conftest import build_test_vibe_config
 from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
 from albert_code.core.agent_loop import AgentLoop
 from albert_code.core.agents.models import BuiltinAgentName
 from albert_code.core.config import ModelConfig
+from tests.acp.conftest import _create_acp_agent
+from tests.conftest import build_test_vibe_config
 
 
 @pytest.fixture
@@ -33,7 +33,9 @@ def acp_agent_loop(backend) -> VibeAcpAgentLoop:
             self._base_config = config
             self.agent_manager.invalidate_config()
 
-    patch("albert_code.acp.acp_agent_loop.AgentLoop", side_effect=PatchedAgentLoop).start()
+    patch(
+        "albert_code.acp.acp_agent_loop.AgentLoop", side_effect=PatchedAgentLoop
+    ).start()
 
     return _create_acp_agent()
 
@@ -48,7 +50,9 @@ class TestACPNewSession:
         )
 
         new_session_events = [
-            e for e in telemetry_events if e.get("event_name") == "albert_code.new_session"
+            e
+            for e in telemetry_events
+            if e.get("event_name") == "albert_code.new_session"
         ]
         assert len(new_session_events) == 1
         assert new_session_events[0]["properties"]["entrypoint"] == "acp"

@@ -4,9 +4,14 @@ import shutil
 
 import pytest
 
-from tests.mock.utils import collect_result
 from albert_code.core.tools.base import BaseToolState, ToolError
-from albert_code.core.tools.builtins.grep import Grep, GrepArgs, GrepBackend, GrepToolConfig
+from albert_code.core.tools.builtins.grep import (
+    Grep,
+    GrepArgs,
+    GrepBackend,
+    GrepToolConfig,
+)
+from tests.mock.utils import collect_result
 
 
 @pytest.fixture

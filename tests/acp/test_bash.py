@@ -6,10 +6,10 @@ from acp import CreateTerminalResponse
 from acp.schema import EnvVariable, TerminalOutputResponse, WaitForTerminalExitResponse
 import pytest
 
-from tests.mock.utils import collect_result
 from albert_code.acp.tools.builtins.bash import AcpBashState, Bash
 from albert_code.core.tools.base import ToolError
 from albert_code.core.tools.builtins.bash import BashArgs, BashResult, BashToolConfig
+from tests.mock.utils import collect_result
 
 
 class MockTerminalHandle:

@@ -7,11 +7,7 @@ from albert_code.core.middleware import (
     MiddlewareAction,
     TodoFocusMiddleware,
 )
-from albert_code.core.tools.builtins.todo import (
-    TodoItem,
-    TodoPriority,
-    TodoStatus,
-)
+from albert_code.core.tools.builtins.todo import TodoItem, TodoPriority, TodoStatus
 from albert_code.core.types import AgentStats, LLMMessage, MessageList, Role
 from tests.conftest import build_test_vibe_config
 
@@ -25,7 +21,9 @@ def _ctx(messages: list[LLMMessage], todos: list[TodoItem]) -> ConversationConte
     )
 
 
-def _todo(content: str, status: TodoStatus = TodoStatus.PENDING, todo_id: str = "1") -> TodoItem:
+def _todo(
+    content: str, status: TodoStatus = TodoStatus.PENDING, todo_id: str = "1"
+) -> TodoItem:
     return TodoItem(
         id=todo_id, content=content, status=status, priority=TodoPriority.MEDIUM
     )
@@ -96,7 +94,9 @@ class TestTodoFocusMiddleware:
     async def test_only_keeps_first_line_of_goal(self) -> None:
         mw = TodoFocusMiddleware()
         messages = [
-            LLMMessage(role=Role.user, content="Goal line\nDetail line that should be ignored"),
+            LLMMessage(
+                role=Role.user, content="Goal line\nDetail line that should be ignored"
+            )
         ]
         todos = [_todo("step", TodoStatus.PENDING)]
         result = await mw.before_turn(_ctx(messages, todos))

@@ -7,11 +7,11 @@ from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
 from textual.pilot import Pilot
 
-from tests.snapshots.snap_compare import SnapCompare
 from albert_code.cli.textual_ui.widgets.status_message import StatusMessage
 from albert_code.cli.textual_ui.widgets.tools import ToolCallMessage
 from albert_code.core.tools.builtins.read_file import ReadFile, ReadFileArgs
 from albert_code.core.types import ToolCallEvent
+from tests.snapshots.snap_compare import SnapCompare
 
 
 class ToolCallStreamingUpdateTest(App):

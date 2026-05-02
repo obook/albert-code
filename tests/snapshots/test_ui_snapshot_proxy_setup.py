@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from textual.pilot import Pilot
 
+from albert_code.core.proxy_setup import get_current_proxy_settings, set_proxy_var
 from tests.snapshots.base_snapshot_test_app import BaseSnapshotTestApp
 from tests.snapshots.snap_compare import SnapCompare
-from albert_code.core.proxy_setup import get_current_proxy_settings, set_proxy_var
 
 
 class ProxySetupTestApp(BaseSnapshotTestApp):

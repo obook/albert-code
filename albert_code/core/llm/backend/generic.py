@@ -162,8 +162,7 @@ class OpenAIAdapter(APIAdapter):
         re.DOTALL,
     )
     _PARAM_RE = re.compile(
-        r"<parameter=(\w+)>(.*?)(?:</parameter>|(?=<parameter=)|$)",
-        re.DOTALL,
+        r"<parameter=(\w+)>(.*?)(?:</parameter>|(?=<parameter=)|$)", re.DOTALL
     )
 
     def _extract_xml_tool_calls(
@@ -191,16 +190,14 @@ class OpenAIAdapter(APIAdapter):
                     id=f"tc-{uuid4().hex[:12]}",
                     index=start_index + offset,
                     function=FunctionCall(
-                        name=func_name,
-                        arguments=json.dumps(params, ensure_ascii=False),
+                        name=func_name, arguments=json.dumps(params, ensure_ascii=False)
                     ),
                 )
             )
         cleaned = self._TOOL_CALL_RE.sub("", content).strip()
         # Strip trailing incomplete tags
         cleaned = re.sub(
-            r"<(?:tool_call|function=\w+|/function|/tool_call)[^>]*>\s*$",
-            "", cleaned,
+            r"<(?:tool_call|function=\w+|/function|/tool_call)[^>]*>\s*$", "", cleaned
         ).strip()
         return cleaned, tool_calls
 
@@ -227,9 +224,7 @@ class OpenAIAdapter(APIAdapter):
                 and not message.tool_calls
                 and ("<tool_call>" in content_str or "<function=" in content_str)
             ):
-                cleaned, xml_tool_calls = self._extract_xml_tool_calls(
-                    content_str
-                )
+                cleaned, xml_tool_calls = self._extract_xml_tool_calls(content_str)
                 update: dict[str, Any] = {"content": cleaned or None}
                 if xml_tool_calls:
                     update["tool_calls"] = xml_tool_calls
@@ -590,7 +585,9 @@ class GenericBackend:
         # incremental parser that reconstructs the tool calls and emits clean
         # text chunks in between. Activated per-provider.
         xml_parser: XmlToolCallStreamParser | None = None
-        if self._provider.streaming_xml_tool_calls and isinstance(adapter, OpenAIAdapter):
+        if self._provider.streaming_xml_tool_calls and isinstance(
+            adapter, OpenAIAdapter
+        ):
             xml_parser = XmlToolCallStreamParser(adapter)
 
         req = adapter.prepare_request(

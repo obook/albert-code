@@ -8,7 +8,9 @@ from textual.style import Style
 from textual.widgets import Markdown
 
 from albert_code.cli.textual_ui.app import VibeApp
-from albert_code.cli.textual_ui.widgets.chat_input.completion_popup import CompletionPopup
+from albert_code.cli.textual_ui.widgets.chat_input.completion_popup import (
+    CompletionPopup,
+)
 from albert_code.cli.textual_ui.widgets.chat_input.container import ChatInputContainer
 
 
@@ -138,7 +140,9 @@ def file_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (tmp_path / "src" / "utils" / "validate.py").write_text("", encoding="utf-8")
     (tmp_path / "src" / "main.py").write_text("", encoding="utf-8")
     (tmp_path / "albert_code" / "acp").mkdir(parents=True)
-    (tmp_path / "albert_code" / "acp" / "entrypoint.py").write_text("", encoding="utf-8")
+    (tmp_path / "albert_code" / "acp" / "entrypoint.py").write_text(
+        "", encoding="utf-8"
+    )
     (tmp_path / "albert_code" / "acp" / "agent.py").write_text("", encoding="utf-8")
     (tmp_path / "README.md").write_text("", encoding="utf-8")
     (tmp_path / ".env").write_text("", encoding="utf-8")

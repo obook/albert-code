@@ -21,7 +21,9 @@ class AcpReadFileState(BaseToolState, AcpToolState):
 
 class ReadFile(CoreReadFileTool, BaseAcpTool[AcpReadFileState]):
     state: AcpReadFileState
-    prompt_path = ALBERT_CODE_ROOT / "core" / "tools" / "builtins" / "prompts" / "read_file.md"
+    prompt_path = (
+        ALBERT_CODE_ROOT / "core" / "tools" / "builtins" / "prompts" / "read_file.md"
+    )
 
     @classmethod
     def _get_tool_state_class(cls) -> type[AcpReadFileState]:

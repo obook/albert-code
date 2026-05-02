@@ -169,7 +169,9 @@ class TestGitHubAuthProviderPollForToken:
         mock_response.json.return_value = {"access_token": "ghp_new_token"}
         mock_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock
+        ):
             token = await provider._poll_for_token(
                 mock_client, "dc_123", expires_in=10, interval=1
             )
@@ -187,7 +189,9 @@ class TestGitHubAuthProviderPollForToken:
         ]
         mock_client.post = AsyncMock(side_effect=responses)
 
-        with patch("albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock
+        ):
             token = await provider._poll_for_token(
                 mock_client, "dc_123", expires_in=30, interval=1
             )
@@ -201,7 +205,9 @@ class TestGitHubAuthProviderPollForToken:
         mock_response.json.return_value = {"error": "expired_token"}
         mock_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock
+        ):
             with pytest.raises(GitHubAuthError, match="expired_token"):
                 await provider._poll_for_token(
                     mock_client, "dc_123", expires_in=10, interval=1
@@ -215,7 +221,9 @@ class TestGitHubAuthProviderPollForToken:
         mock_response.json.return_value = {"error": "access_denied"}
         mock_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock
+        ):
             with pytest.raises(GitHubAuthError, match="access_denied"):
                 await provider._poll_for_token(
                     mock_client, "dc_123", expires_in=10, interval=1
@@ -229,7 +237,9 @@ class TestGitHubAuthProviderPollForToken:
         mock_response.json.return_value = {"error": "authorization_pending"}
         mock_client.post = AsyncMock(return_value=mock_response)
 
-        with patch("albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock):
+        with patch(
+            "albert_code.core.auth.github.asyncio.sleep", new_callable=AsyncMock
+        ):
             with pytest.raises(GitHubAuthError, match="timed out"):
                 await provider._poll_for_token(
                     mock_client, "dc_123", expires_in=2, interval=1

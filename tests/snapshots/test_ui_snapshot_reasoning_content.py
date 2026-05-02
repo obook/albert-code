@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from textual.pilot import Pilot
 
+from albert_code.cli.textual_ui.widgets.messages import ReasoningMessage
 from tests.conftest import build_test_agent_loop
 from tests.mock.utils import mock_llm_chunk
 from tests.snapshots.base_snapshot_test_app import BaseSnapshotTestApp, default_config
 from tests.snapshots.snap_compare import SnapCompare
 from tests.stubs.fake_backend import FakeBackend
-from albert_code.cli.textual_ui.widgets.messages import ReasoningMessage
 
 
 class SnapshotTestAppWithReasoningContent(BaseSnapshotTestApp):

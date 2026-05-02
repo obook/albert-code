@@ -4,7 +4,6 @@ from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.pilot import Pilot
 
-from tests.snapshots.snap_compare import SnapCompare
 from albert_code.cli.textual_ui.widgets.question_app import QuestionApp
 from albert_code.cli.textual_ui.widgets.teleport_message import TeleportMessage
 from albert_code.core.tools.builtins.ask_user_question import (
@@ -12,6 +11,7 @@ from albert_code.core.tools.builtins.ask_user_question import (
     Choice,
     Question,
 )
+from tests.snapshots.snap_compare import SnapCompare
 
 
 class TeleportMessageTestApp(App):

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from albert_code.core.paths.config_paths import CONFIG_FILE
-from albert_code.core.paths.global_paths import GLOBAL_CONFIG_FILE, ALBERT_CODE_HOME
+from albert_code.core.paths.global_paths import ALBERT_CODE_HOME, GLOBAL_CONFIG_FILE
 from albert_code.core.trusted_folders import trusted_folders_manager
 
 

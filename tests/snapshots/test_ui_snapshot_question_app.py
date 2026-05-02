@@ -4,13 +4,13 @@ from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.pilot import Pilot
 
-from tests.snapshots.snap_compare import SnapCompare
 from albert_code.cli.textual_ui.widgets.question_app import QuestionApp
 from albert_code.core.tools.builtins.ask_user_question import (
     AskUserQuestionArgs,
     Choice,
     Question,
 )
+from tests.snapshots.snap_compare import SnapCompare
 
 
 def single_question_args() -> AskUserQuestionArgs:

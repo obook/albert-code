@@ -3,12 +3,12 @@ from __future__ import annotations
 from rich.style import Style
 from textual.widgets.text_area import TextAreaTheme
 
-from tests.conftest import build_test_agent_loop, build_test_vibe_config
-from tests.stubs.fake_backend import FakeBackend
 from albert_code.cli.textual_ui.app import VibeApp
 from albert_code.cli.textual_ui.widgets.chat_input import ChatTextArea
 from albert_code.core.agents.models import BuiltinAgentName
 from albert_code.core.config import VibeConfig
+from tests.conftest import build_test_agent_loop, build_test_vibe_config
+from tests.stubs.fake_backend import FakeBackend
 
 
 def default_config() -> VibeConfig:

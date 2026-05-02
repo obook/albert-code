@@ -7,11 +7,15 @@ from textual.containers import VerticalScroll
 from textual.pilot import Pilot
 from textual.widget import Widget
 
-from tests.snapshots.snap_compare import SnapCompare
 from albert_code.cli.textual_ui.handlers.event_handler import EventHandler
 from albert_code.cli.textual_ui.widgets.tools import ToolCallMessage
-from albert_code.core.tools.builtins.read_file import ReadFile, ReadFileArgs, ReadFileResult
+from albert_code.core.tools.builtins.read_file import (
+    ReadFile,
+    ReadFileArgs,
+    ReadFileResult,
+)
 from albert_code.core.types import ToolCallEvent, ToolResultEvent
+from tests.snapshots.snap_compare import SnapCompare
 
 
 class ParallelToolCallsApp(App):

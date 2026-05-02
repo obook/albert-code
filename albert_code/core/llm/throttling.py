@@ -51,7 +51,10 @@ class RollingWindow:
     """Counter of events within a rolling time window."""
 
     def __init__(
-        self, window_seconds: float = WINDOW_SECONDS, *, clock: Callable[[], float] = time.monotonic
+        self,
+        window_seconds: float = WINDOW_SECONDS,
+        *,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._window = window_seconds
         self._clock = clock
@@ -128,7 +131,9 @@ class Throttler:
             await self._sleep(wait)
             slept_total += wait
 
-    def record_request(self, *, prompt_tokens: int = 0, completion_tokens: int = 0) -> None:
+    def record_request(
+        self, *, prompt_tokens: int = 0, completion_tokens: int = 0
+    ) -> None:
         self._requests.add(1)
         used = max(0, prompt_tokens) + max(0, completion_tokens)
         if used:
@@ -168,9 +173,7 @@ class Throttler:
         """
         self._rate_limit_events.add(1)
         recent = self._rate_limit_events.total()
-        logger.warning(
-            "Rate-limited (429); recent 429 in last 60s: %d", recent
-        )
+        logger.warning("Rate-limited (429); recent 429 in last 60s: %d", recent)
         if model_alias is None:
             return
         self._consecutive_429_per_model[model_alias] = (

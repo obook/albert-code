@@ -6,15 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.conftest import (
-    build_test_agent_loop,
-    build_test_vibe_app,
-    build_test_vibe_config,
-)
-from tests.update_notifier.adapters.fake_update_cache_repository import (
-    FakeUpdateCacheRepository,
-)
-from tests.update_notifier.adapters.fake_update_gateway import FakeUpdateGateway
 from albert_code.cli.textual_ui.widgets.messages import (
     AssistantMessage,
     UserMessage,
@@ -24,6 +15,15 @@ from albert_code.cli.textual_ui.widgets.tools import ToolCallMessage, ToolResult
 from albert_code.cli.update_notifier import UpdateCache
 from albert_code.core.config import VibeConfig
 from albert_code.core.types import FunctionCall, LLMMessage, Role, ToolCall
+from tests.conftest import (
+    build_test_agent_loop,
+    build_test_vibe_app,
+    build_test_vibe_config,
+)
+from tests.update_notifier.adapters.fake_update_cache_repository import (
+    FakeUpdateCacheRepository,
+)
+from tests.update_notifier.adapters.fake_update_gateway import FakeUpdateGateway
 
 
 @pytest.mark.asyncio

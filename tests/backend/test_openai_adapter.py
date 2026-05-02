@@ -88,9 +88,9 @@ class TestOpenAIAdapterToolCallIndex:
                     "message": {
                         "role": "assistant",
                         "content": (
-                            '<tool_call><function=read_file>'
+                            "<tool_call><function=read_file>"
                             '<parameter=path>"foo.txt"</parameter>'
-                            '</function></tool_call>'
+                            "</function></tool_call>"
                         ),
                     }
                 }

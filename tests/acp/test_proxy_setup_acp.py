@@ -6,11 +6,11 @@ from unittest.mock import patch
 from acp.schema import AgentMessageChunk, AvailableCommandsUpdate, TextContentBlock
 import pytest
 
+from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
+from albert_code.core.agent_loop import AgentLoop
 from tests.acp.conftest import _create_acp_agent
 from tests.conftest import build_test_vibe_config
 from tests.stubs.fake_client import FakeClient
-from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
-from albert_code.core.agent_loop import AgentLoop
 
 
 @pytest.fixture
@@ -23,7 +23,9 @@ def acp_agent_loop(backend) -> VibeAcpAgentLoop:
             self._base_config = config
             self.agent_manager.invalidate_config()
 
-    patch("albert_code.acp.acp_agent_loop.AgentLoop", side_effect=PatchedAgentLoop).start()
+    patch(
+        "albert_code.acp.acp_agent_loop.AgentLoop", side_effect=PatchedAgentLoop
+    ).start()
 
     return _create_acp_agent()
 

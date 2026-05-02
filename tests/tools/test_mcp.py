@@ -507,7 +507,8 @@ class TestMCPRegistry:
         remote = RemoteTool(name="run", description="Run it")
 
         with patch(
-            "albert_code.core.tools.mcp.registry.list_tools_stdio", return_value=[remote]
+            "albert_code.core.tools.mcp.registry.list_tools_stdio",
+            return_value=[remote],
         ):
             tools = await registry._discover_stdio(srv)
 
@@ -544,7 +545,8 @@ class TestMCPRegistry:
 
         new_remote = RemoteTool(name="nt")
         with patch(
-            "albert_code.core.tools.mcp.registry.list_tools_http", return_value=[new_remote]
+            "albert_code.core.tools.mcp.registry.list_tools_http",
+            return_value=[new_remote],
         ):
             tools = registry.get_tools([cached_srv, new_srv])
 

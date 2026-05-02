@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from textual.pilot import Pilot
 
-from tests.snapshots.base_snapshot_test_app import BaseSnapshotTestApp
-from tests.snapshots.snap_compare import SnapCompare
 from albert_code.cli.textual_ui.widgets.tools import ToolResultMessage
 from albert_code.core.tools.builtins.ask_user_question import (
     Answer,
@@ -11,6 +9,8 @@ from albert_code.core.tools.builtins.ask_user_question import (
     AskUserQuestionResult,
 )
 from albert_code.core.types import ToolResultEvent
+from tests.snapshots.base_snapshot_test_app import BaseSnapshotTestApp
+from tests.snapshots.snap_compare import SnapCompare
 
 
 class AskUserQuestionResultApp(BaseSnapshotTestApp):

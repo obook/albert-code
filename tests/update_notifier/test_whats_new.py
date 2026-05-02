@@ -5,14 +5,14 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.update_notifier.adapters.fake_update_cache_repository import (
-    FakeUpdateCacheRepository,
-)
 from albert_code.cli.update_notifier import UpdateCache
 from albert_code.cli.update_notifier.whats_new import (
     load_whats_new_content,
     mark_version_as_seen,
     should_show_whats_new,
+)
+from tests.update_notifier.adapters.fake_update_cache_repository import (
+    FakeUpdateCacheRepository,
 )
 
 

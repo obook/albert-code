@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from tests.mock.utils import collect_result
 from albert_code.core.tools.base import BaseToolState, ToolError, ToolPermission
 from albert_code.core.tools.builtins.bash import Bash, BashArgs, BashToolConfig
+from tests.mock.utils import collect_result
 
 
 @pytest.fixture

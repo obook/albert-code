@@ -4,9 +4,6 @@ from collections.abc import Callable
 
 import pytest
 
-from tests.conftest import build_test_agent_loop, build_test_vibe_config
-from tests.mock.utils import mock_llm_chunk
-from tests.stubs.fake_backend import FakeBackend
 from albert_code.core.agents.models import BuiltinAgentName
 from albert_code.core.config import (
     Backend,
@@ -27,6 +24,9 @@ from albert_code.core.types import (
     ToolCall,
     UserMessageEvent,
 )
+from tests.conftest import build_test_agent_loop, build_test_vibe_config
+from tests.mock.utils import mock_llm_chunk
+from tests.stubs.fake_backend import FakeBackend
 
 
 def make_config(

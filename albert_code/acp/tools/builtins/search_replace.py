@@ -28,7 +28,12 @@ class AcpSearchReplaceState(BaseToolState, AcpToolState):
 class SearchReplace(CoreSearchReplaceTool, BaseAcpTool[AcpSearchReplaceState]):
     state: AcpSearchReplaceState
     prompt_path = (
-        ALBERT_CODE_ROOT / "core" / "tools" / "builtins" / "prompts" / "search_replace.md"
+        ALBERT_CODE_ROOT
+        / "core"
+        / "tools"
+        / "builtins"
+        / "prompts"
+        / "search_replace.md"
     )
 
     @classmethod

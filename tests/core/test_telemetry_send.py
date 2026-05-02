@@ -6,14 +6,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from tests.conftest import build_test_vibe_config
-from tests.stubs.fake_tool import FakeTool, FakeToolArgs
 from albert_code.core.agent_loop import ToolDecision, ToolExecutionResponse
 from albert_code.core.config import Backend
 from albert_code.core.llm.format import ResolvedToolCall
 from albert_code.core.telemetry.send import DATALAKE_EVENTS_URL, TelemetryClient
 from albert_code.core.tools.base import BaseTool, ToolPermission
 from albert_code.core.utils import get_user_agent
+from tests.conftest import build_test_vibe_config
+from tests.stubs.fake_tool import FakeTool, FakeToolArgs
 
 _original_send_telemetry_event = TelemetryClient.send_telemetry_event
 from albert_code.core.tools.builtins.write_file import WriteFile, WriteFileArgs

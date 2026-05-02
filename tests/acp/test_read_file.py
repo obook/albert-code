@@ -5,7 +5,6 @@ from pathlib import Path
 from acp import ReadTextFileResponse
 import pytest
 
-from tests.mock.utils import collect_result
 from albert_code.acp.tools.builtins.read_file import AcpReadFileState, ReadFile
 from albert_code.core.tools.base import ToolError
 from albert_code.core.tools.builtins.read_file import (
@@ -13,6 +12,7 @@ from albert_code.core.tools.builtins.read_file import (
     ReadFileResult,
     ReadFileToolConfig,
 )
+from tests.mock.utils import collect_result
 
 
 class MockClient:

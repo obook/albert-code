@@ -7,11 +7,6 @@ from typing import Any
 import pytest
 import tomli_w
 
-from tests.stubs.fake_backend import FakeBackend
-from tests.update_notifier.adapters.fake_update_cache_repository import (
-    FakeUpdateCacheRepository,
-)
-from tests.update_notifier.adapters.fake_update_gateway import FakeUpdateGateway
 from albert_code.cli.textual_ui.app import CORE_VERSION, VibeApp
 from albert_code.core.agent_loop import AgentLoop
 from albert_code.core.agents.models import BuiltinAgentName
@@ -19,6 +14,11 @@ from albert_code.core.config import SessionLoggingConfig, VibeConfig
 from albert_code.core.llm.types import BackendLike
 from albert_code.core.paths import global_paths
 from albert_code.core.paths.config_paths import unlock_config_paths
+from tests.stubs.fake_backend import FakeBackend
+from tests.update_notifier.adapters.fake_update_cache_repository import (
+    FakeUpdateCacheRepository,
+)
+from tests.update_notifier.adapters.fake_update_gateway import FakeUpdateGateway
 
 
 def get_base_config() -> dict[str, Any]:
@@ -89,7 +89,9 @@ def _mock_platform(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def _mock_update_commands(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("albert_code.cli.update_notifier.update.UPDATE_COMMANDS", ["true"])
+    monkeypatch.setattr(
+        "albert_code.cli.update_notifier.update.UPDATE_COMMANDS", ["true"]
+    )
 
 
 @pytest.fixture(autouse=True)

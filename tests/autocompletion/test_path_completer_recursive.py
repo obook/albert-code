@@ -14,7 +14,9 @@ def file_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (tmp_path / "albert_code" / "acp" / "agent.py").write_text("")
     (tmp_path / "albert_code" / "cli" / "autocompletion").mkdir(parents=True)
     (tmp_path / "albert_code" / "cli" / "autocompletion" / "fuzzy.py").write_text("")
-    (tmp_path / "albert_code" / "cli" / "autocompletion" / "completers.py").write_text("")
+    (tmp_path / "albert_code" / "cli" / "autocompletion" / "completers.py").write_text(
+        ""
+    )
     (tmp_path / "tests" / "autocompletion").mkdir(parents=True)
     (tmp_path / "tests" / "autocompletion" / "test_fuzzy.py").write_text("")
     (tmp_path / "README.md").write_text("")
@@ -48,7 +50,9 @@ def test_finds_multiple_matches_recursively(file_tree: Path) -> None:
 
 
 def test_prioritizes_exact_path_matches(file_tree: Path) -> None:
-    results = PathCompleter().get_completions("@albert_code/acp/entrypoint", cursor_pos=20)
+    results = PathCompleter().get_completions(
+        "@albert_code/acp/entrypoint", cursor_pos=20
+    )
 
     assert results[0] == "@albert_code/acp/entrypoint.py"
 

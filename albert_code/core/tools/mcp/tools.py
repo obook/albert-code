@@ -11,9 +11,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, TextIO
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from mcp import ClientSession
-from mcp.client.stdio import StdioServerParameters, stdio_client
-from mcp.client.streamable_http import streamablehttp_client
 from albert_code.core.logger import logger
 from albert_code.core.tools.base import (
     BaseTool,
@@ -25,6 +22,9 @@ from albert_code.core.tools.base import (
 from albert_code.core.tools.mcp_sampling import MCPSamplingHandler
 from albert_code.core.tools.ui import ToolResultDisplay, ToolUIData
 from albert_code.core.types import ToolStreamEvent
+from mcp import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp.client.streamable_http import streamablehttp_client
 
 if TYPE_CHECKING:
     from albert_code.core.types import ToolResultEvent

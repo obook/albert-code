@@ -14,7 +14,8 @@ async def test_do_update_returns_true_when_first_command_succeeds() -> None:
     mock_process.returncode = 0
 
     with patch(
-        "albert_code.cli.update_notifier.update.UPDATE_COMMANDS", ["command_1", "command_2"]
+        "albert_code.cli.update_notifier.update.UPDATE_COMMANDS",
+        ["command_1", "command_2"],
     ):
         with patch(
             "albert_code.cli.update_notifier.update.asyncio.create_subprocess_shell"
@@ -39,7 +40,8 @@ async def test_do_update_returns_true_when_second_command_succeeds() -> None:
     mock_process_success.returncode = 0
 
     with patch(
-        "albert_code.cli.update_notifier.update.UPDATE_COMMANDS", ["command_1", "command_2"]
+        "albert_code.cli.update_notifier.update.UPDATE_COMMANDS",
+        ["command_1", "command_2"],
     ):
         with patch(
             "albert_code.cli.update_notifier.update.asyncio.create_subprocess_shell"
@@ -61,7 +63,8 @@ async def test_do_update_returns_false_when_all_commands_fail() -> None:
     mock_process.returncode = 1
 
     with patch(
-        "albert_code.cli.update_notifier.update.UPDATE_COMMANDS", ["command_1", "command_2"]
+        "albert_code.cli.update_notifier.update.UPDATE_COMMANDS",
+        ["command_1", "command_2"],
     ):
         with patch(
             "albert_code.cli.update_notifier.update.asyncio.create_subprocess_shell"

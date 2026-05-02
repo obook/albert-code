@@ -41,10 +41,7 @@ def test_group_limits_by_router_pivots_correctly() -> None:
         RouterLimit(router=1, type="rpd", value=None),
     ]
     grouped = group_limits_by_router(limits)
-    assert grouped == {
-        0: {"rpm": 60, "tpm": 10_000},
-        1: {"rpm": 120, "rpd": None},
-    }
+    assert grouped == {0: {"rpm": 60, "tpm": 10_000}, 1: {"rpm": 120, "rpd": None}}
 
 
 def test_group_limits_by_router_empty() -> None:
@@ -52,17 +49,15 @@ def test_group_limits_by_router_empty() -> None:
 
 
 def test_account_info_validates_full_payload() -> None:
-    info = AlbertAccountInfo.model_validate(
-        {
-            "name": "Alice",
-            "email": "alice@example.gouv.fr",
-            "id": "user-123",
-            "limits": [
-                {"router": 0, "type": "rpm", "value": 60},
-                {"router": 0, "type": "tpd", "value": None},
-            ],
-        }
-    )
+    info = AlbertAccountInfo.model_validate({
+        "name": "Alice",
+        "email": "alice@example.gouv.fr",
+        "id": "user-123",
+        "limits": [
+            {"router": 0, "type": "rpm", "value": 60},
+            {"router": 0, "type": "tpd", "value": None},
+        ],
+    })
     assert info.name == "Alice"
     assert len(info.limits) == 2
     assert info.limits[0].value == 60

@@ -22,7 +22,10 @@ from acp.schema import (
 )
 
 from albert_code.core.agents.models import AgentProfile, AgentType
-from albert_code.core.proxy_setup import SUPPORTED_PROXY_VARS, get_current_proxy_settings
+from albert_code.core.proxy_setup import (
+    SUPPORTED_PROXY_VARS,
+    get_current_proxy_settings,
+)
 from albert_code.core.types import CompactEndEvent, CompactStartEvent, LLMMessage
 from albert_code.core.utils import compact_reduction_display
 

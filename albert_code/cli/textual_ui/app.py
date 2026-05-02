@@ -35,7 +35,10 @@ from albert_code.cli.textual_ui.widgets.banner.banner import Banner
 from albert_code.cli.textual_ui.widgets.chat_input import ChatInputContainer
 from albert_code.cli.textual_ui.widgets.compact import CompactMessage
 from albert_code.cli.textual_ui.widgets.config_app import ConfigApp
-from albert_code.cli.textual_ui.widgets.context_progress import ContextProgress, TokenState
+from albert_code.cli.textual_ui.widgets.context_progress import (
+    ContextProgress,
+    TokenState,
+)
 from albert_code.cli.textual_ui.widgets.load_more import HistoryLoadMoreRequested
 from albert_code.cli.textual_ui.widgets.loading import LoadingWidget, paused_timer
 from albert_code.cli.textual_ui.widgets.messages import (
@@ -888,7 +891,9 @@ class VibeApp(App):  # noqa: PLR0904
         """
         del remaining_seconds  # informational, conveyed via `message`
         severity = "warning" if kind == "activated" else "information"
-        title = "Auto-fallback activated" if kind == "activated" else "Auto-fallback ended"
+        title = (
+            "Auto-fallback activated" if kind == "activated" else "Auto-fallback ended"
+        )
         self.notify(message, title=title, severity=severity, timeout=8)
 
     def _format_model_label(self) -> str:

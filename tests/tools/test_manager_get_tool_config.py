@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import build_test_vibe_config
 from albert_code.core.tools.base import BaseToolConfig, ToolPermission
 from albert_code.core.tools.manager import ToolManager
+from tests.conftest import build_test_vibe_config
 
 
 @pytest.fixture

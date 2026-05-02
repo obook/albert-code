@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from tests.conftest import build_test_vibe_app
 from albert_code.cli.textual_ui.widgets.chat_input import ChatInputContainer
-from albert_code.cli.textual_ui.widgets.chat_input.body import ChatInputBody, _PromptSpinner
+from albert_code.cli.textual_ui.widgets.chat_input.body import (
+    ChatInputBody,
+    _PromptSpinner,
+)
 from albert_code.cli.textual_ui.widgets.messages import UserMessage
+from tests.conftest import build_test_vibe_app
 
 
 @pytest.mark.asyncio

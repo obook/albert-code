@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from tests.conftest import build_test_vibe_config
 from albert_code.core.config import VibeConfig
+from tests.conftest import build_test_vibe_config
 
 
 @pytest.fixture

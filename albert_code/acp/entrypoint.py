@@ -8,7 +8,11 @@ import sys
 from albert_code import __version__
 from albert_code.core.config import VibeConfig
 from albert_code.core.logger import logger
-from albert_code.core.paths.config_paths import CONFIG_FILE, HISTORY_FILE, unlock_config_paths
+from albert_code.core.paths.config_paths import (
+    CONFIG_FILE,
+    HISTORY_FILE,
+    unlock_config_paths,
+)
 
 # Configure line buffering for subprocess communication
 sys.stdout.reconfigure(line_buffering=True)  # pyright: ignore[reportAttributeAccessIssue]

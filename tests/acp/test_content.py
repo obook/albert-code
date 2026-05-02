@@ -11,9 +11,9 @@ from acp.schema import (
 )
 import pytest
 
-from tests.stubs.fake_backend import FakeBackend
 from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
 from albert_code.core.types import Role
+from tests.stubs.fake_backend import FakeBackend
 
 
 class TestACPContent:

@@ -6,13 +6,13 @@ from unittest.mock import patch
 from acp.schema import AgentThoughtChunk, TextContentBlock
 import pytest
 
+from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
+from albert_code.core.agent_loop import AgentLoop
+from albert_code.core.types import LLMChunk, LLMMessage, LLMUsage, Role
 from tests.acp.conftest import _create_acp_agent
 from tests.conftest import build_test_vibe_config
 from tests.stubs.fake_backend import FakeBackend
 from tests.stubs.fake_client import FakeClient
-from albert_code.acp.acp_agent_loop import VibeAcpAgentLoop
-from albert_code.core.agent_loop import AgentLoop
-from albert_code.core.types import LLMChunk, LLMMessage, LLMUsage, Role
 
 
 def _create_backend_with_reasoning(
@@ -47,7 +47,9 @@ def acp_agent_loop_with_reasoning(
             self._base_config = config
             self.agent_manager.invalidate_config()
 
-    patch("albert_code.acp.acp_agent_loop.AgentLoop", side_effect=PatchedAgentLoop).start()
+    patch(
+        "albert_code.acp.acp_agent_loop.AgentLoop", side_effect=PatchedAgentLoop
+    ).start()
     return _create_acp_agent()
 
 

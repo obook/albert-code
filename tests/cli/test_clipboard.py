@@ -139,7 +139,9 @@ def test_copy_selection_to_clipboard_multiple_widgets(mock_app: MagicMock) -> No
     widget3 = MockWidget(text_selection=None)
     mock_app.query.return_value = [widget1, widget2, widget3]
 
-    with patch("albert_code.cli.clipboard._copy_to_clipboard") as mock_copy_to_clipboard:
+    with patch(
+        "albert_code.cli.clipboard._copy_to_clipboard"
+    ) as mock_copy_to_clipboard:
         result = copy_selection_to_clipboard(mock_app)
 
         assert result == "first selection\nsecond selection"
@@ -161,7 +163,9 @@ def test_copy_selection_to_clipboard_preview_shortening(mock_app: MagicMock) -> 
     )
     mock_app.query.return_value = [widget]
 
-    with patch("albert_code.cli.clipboard._copy_to_clipboard") as mock_copy_to_clipboard:
+    with patch(
+        "albert_code.cli.clipboard._copy_to_clipboard"
+    ) as mock_copy_to_clipboard:
         result = copy_selection_to_clipboard(mock_app)
         assert result == long_text
 

@@ -5,8 +5,10 @@ from pathlib import Path
 from acp import ReadTextFileResponse
 import pytest
 
-from tests.mock.utils import collect_result
-from albert_code.acp.tools.builtins.search_replace import AcpSearchReplaceState, SearchReplace
+from albert_code.acp.tools.builtins.search_replace import (
+    AcpSearchReplaceState,
+    SearchReplace,
+)
 from albert_code.core.tools.base import ToolError
 from albert_code.core.tools.builtins.search_replace import (
     SearchReplaceArgs,
@@ -14,6 +16,7 @@ from albert_code.core.tools.builtins.search_replace import (
     SearchReplaceResult,
 )
 from albert_code.core.types import ToolCallEvent, ToolResultEvent
+from tests.mock.utils import collect_result
 
 
 class MockClient:

@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import build_test_vibe_config
-from tests.skills.conftest import create_skill
 from albert_code.core.config import VibeConfig
 from albert_code.core.skills.manager import SkillManager
 from albert_code.core.trusted_folders import trusted_folders_manager
+from tests.conftest import build_test_vibe_config
+from tests.skills.conftest import create_skill
 
 
 @pytest.fixture
@@ -261,7 +261,8 @@ class TestSkillManagerSearchPaths:
 
         assert len(manager.available_skills) == 1
         assert (
-            manager.available_skills["shared-skill"].description == "First from .albert-code"
+            manager.available_skills["shared-skill"].description
+            == "First from .albert-code"
         )
 
     def test_discovers_from_multiple_skill_paths(self, tmp_path: Path) -> None:

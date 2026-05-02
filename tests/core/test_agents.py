@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from tests.conftest import build_test_vibe_config
 from albert_code.core.agents.manager import AgentManager
-from albert_code.core.agents.models import BUILTIN_AGENTS, EXPLORE, AgentSafety, AgentType
+from albert_code.core.agents.models import (
+    BUILTIN_AGENTS,
+    EXPLORE,
+    AgentSafety,
+    AgentType,
+)
+from tests.conftest import build_test_vibe_config
 
 
 class TestAgentProfile:
