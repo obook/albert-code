@@ -5,6 +5,7 @@ from contextlib import AbstractContextManager, contextmanager
 import io
 import os
 from pathlib import Path
+import sys
 from typing import cast
 
 import pexpect
@@ -61,8 +62,8 @@ def spawned_vibe_process() -> SpawnedVibeFactory:
     def spawn(workdir: Path) -> SpawnedVibeContext:
         captured = io.StringIO()
         child = pexpect.spawn(
-            "uv",
-            ["run", "albert-code", "--workdir", str(workdir)],
+            sys.executable,
+            ["-m", "albert_code.cli.entrypoint", "--workdir", str(workdir)],
             cwd=str(TESTS_ROOT.parent),
             env=os.environ,
             encoding="utf-8",
