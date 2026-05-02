@@ -10,10 +10,23 @@ REM Supprimer le \ final pour eviter les doubles \ dans les chemins
 if "%SCRIPT_DIR:~-1%"=="\" set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
 set VENV_DIR=%SCRIPT_DIR%\.venv
 
-REM Si des arguments sont fournis, mode direct (pas de menu)
+REM Si des arguments sont fournis, mode direct (pas de menu, pas de check console)
 if not "%~1"=="" goto :prepare
 
-REM Aucun argument : afficher le menu interactif
+REM Aucun argument : verifier d'abord la console avant d'afficher le menu.
+REM Le menu et la TUI ne fonctionnent que dans Windows Terminal.
+if not "%WT_SESSION%"=="" goto :menu
+echo.
+echo La console actuelle ne supporte pas l'interface d'Albert Code.
+echo L'invite de commande classique ^(cmd.exe^) ne sait pas afficher la TUI Textual.
+echo.
+echo Solutions :
+echo   1. Installer Windows Terminal ^(https://aka.ms/terminal^) et y relancer ce .bat.
+echo   2. Utiliser le mode programmatique sans TUI : albert-code.bat -p "votre prompt"
+echo.
+pause
+exit /b 1
+
 :menu
 cls
 echo.
@@ -53,23 +66,6 @@ pause
 goto :menu
 
 :prepare
-REM Detecter la console legacy (cmd.exe / conhost classique). La TUI ne s'affiche
-REM que dans Windows Terminal. WT_SESSION est defini dans toute session WT.
-REM Cette verif s'applique uniquement au mode interactif (pas si on a -p, -v, -h, etc).
-if not "%~1"=="" goto :skip_tty_check
-if not "%WT_SESSION%"=="" goto :skip_tty_check
-echo.
-echo La console actuelle ne supporte pas l'interface d'Albert Code.
-echo L'invite de commande classique ^(cmd.exe^) ne sait pas afficher la TUI Textual.
-echo.
-echo Solutions :
-echo   1. Installer Windows Terminal ^(https://aka.ms/terminal^) et y relancer ce .bat.
-echo   2. Utiliser le mode programmatique sans TUI : albert-code.bat -p "votre prompt"
-echo.
-pause
-goto :menu
-:skip_tty_check
-
 REM Verifier que python est disponible
 where python >nul 2>&1
 if errorlevel 1 (
