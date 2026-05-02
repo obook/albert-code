@@ -361,7 +361,7 @@ async def test_ui_displays_success_notification_when_auto_update_succeeds(
     assert notification.title == "Update successful"
     assert (
         notification.message
-        == "0.1.0 => 0.2.0\nVibe was updated successfully. Please restart to use the new version."
+        == "0.1.0 => 0.2.0\nAlbert Code was updated successfully. Please restart to use the new version."
     )
 
 

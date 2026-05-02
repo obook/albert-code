@@ -1669,7 +1669,7 @@ class VibeApp(App):  # noqa: PLR0904
 
         if self.config.enable_auto_update and await do_update():
             self.notify(
-                f"{update_message_prefix}\nVibe was updated successfully. Please restart to use the new version.",
+                f"{update_message_prefix}\nAlbert Code was updated successfully. Please restart to use the new version.",
                 title="Update successful",
                 severity="information",
                 timeout=10,

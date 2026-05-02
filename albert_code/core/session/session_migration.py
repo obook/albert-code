@@ -13,7 +13,7 @@ def migrate_sessions_entrypoint(session_config: SessionLoggingConfig) -> int:
 
 
 async def migrate_sessions(session_config: SessionLoggingConfig) -> int:
-    """Helper for migrating session data from singular JSON files to the format introduced in Vibe 2.0 with per-session folders with split metadata and message files."""
+    """Helper for migrating session data from singular JSON files to the format introduced in version 2.0 with per-session folders with split metadata and message files."""
     save_dir = session_config.save_dir
     if not save_dir or not session_config.enabled:
         return 0

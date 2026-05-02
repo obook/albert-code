@@ -221,7 +221,7 @@ class InterruptMessage(Static):
         with Horizontal(classes="interrupt-container"):
             yield ExpandingBorder(classes="interrupt-border")
             yield NoMarkupStatic(
-                "Interrupted · What should Vibe do instead?",
+                "Interrupted · What should Albert Code do instead?",
                 classes="interrupt-content",
             )
 

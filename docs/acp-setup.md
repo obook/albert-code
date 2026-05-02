@@ -1,20 +1,20 @@
 # ACP Setup
 
-Albert Code can be used in text editors and IDEs that support [Agent Client Protocol](https://agentclientprotocol.com/overview/clients). Albert Code includes the `vibe-acp` tool.
-Once you have set up `vibe` with the API keys, you are ready to use `vibe-acp` in your editor. Below are the setup instructions for some editors that support ACP.
+Albert Code can be used in text editors and IDEs that support [Agent Client Protocol](https://agentclientprotocol.com/overview/clients). Albert Code includes the `albert-acp` tool.
+Once you have set up `albert-code` with the API keys, you are ready to use `albert-acp` in your editor. Below are the setup instructions for some editors that support ACP.
 
 ## Zed
 
 For usage in Zed, we recommend using the [Albert Code Zed's extension](https://zed.dev/extensions/albert-code). Alternatively, you can set up a local install as follows:
 
-1. Go to `~/.config/zed/settings.json` and, under the `agent_servers` JSON object, add the following key-value pair to invoke the `vibe-acp` command. Here is the snippet:
+1. Go to `~/.config/zed/settings.json` and, under the `agent_servers` JSON object, add the following key-value pair to invoke the `albert-acp` command. Here is the snippet:
 
 ```json
 {
    "agent_servers": {
       "Albert Code": {
          "type": "custom",
-         "command": "vibe-acp",
+         "command": "albert-acp",
          "args": [],
          "env": {}
       }
@@ -22,7 +22,7 @@ For usage in Zed, we recommend using the [Albert Code Zed's extension](https://z
 }
 ```
 
-1. In the `New Thread` pane on the right, select the `vibe` agent and start the conversation.
+1. In the `New Thread` pane on the right, select the `Albert Code` agent and start the conversation.
 
 ## JetBrains IDEs
 
@@ -42,7 +42,7 @@ For using Albert Code in JetBrains IDEs, you'll need to have the [Jetbrains AI A
 {
   "agent_servers": {
     "Albert Code": {
-      "command": "vibe-acp",
+      "command": "albert-acp",
     }
   }
 }
@@ -58,7 +58,7 @@ Add Albert Code in the acp_providers section of your configuration
 {
   acp_providers = {
     ["albert-code"] = {
-      command = "vibe-acp",
+      command = "albert-acp",
       env = {
          MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY"), -- necessary if you setup Albert Code manually
       },
