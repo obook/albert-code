@@ -60,6 +60,17 @@ Sous Windows, utiliser `albert-code.bat` à la place de `albert-code.sh`.
 > ### Sans Windows Terminal
 >
 > Le mode programmatique `albert-code.bat -p "votre prompt"` n'utilise pas la TUI et fonctionne dans n'importe quelle console (cmd.exe, PowerShell standard). Il convient aux usages scriptés mais ne fournit pas l'interface interactive.
+>
+> ### Menu d'installation
+>
+> Lancer `.\albert-code.bat` sans argument affiche un menu interactif :
+>
+> 1. **Lancer Albert Code** : démarre l'application normalement.
+> 2. **Installer la commande dans le PATH utilisateur** : ajoute le dossier d'Albert Code au `PATH` afin que `albert-code` soit disponible depuis n'importe quel répertoire.
+> 3. **Désinstaller la commande du PATH utilisateur** : retire l'entrée du `PATH` (le dossier et l'application restent en place).
+> 4. **Quitter** : ferme le menu sans rien lancer.
+>
+> Avec des arguments (par exemple `albert-code.bat -p "..."` ou `albert-code.bat --version`), le menu est court-circuité et la commande s'exécute directement.
 
 ## 3 - Utilisation
 

@@ -1,6 +1,7 @@
 @echo off
 REM Lanceur albert-code -- Windows
-REM Cree le venv Python au premier lancement, puis lance albert-code.
+REM Sans argument : affiche un menu (lancer / installer / desinstaller / quitter).
+REM Avec arguments : execute albert-code en mode direct.
 REM Usage : albert-code.bat [options] [PROMPT]
 
 REM %~dp0 = dossier du script (d=drive, p=path, 0=argument 0)
@@ -9,10 +10,53 @@ REM Supprimer le \ final pour eviter les doubles \ dans les chemins
 if "%SCRIPT_DIR:~-1%"=="\" set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
 set VENV_DIR=%SCRIPT_DIR%\.venv
 
+REM Si des arguments sont fournis, mode direct (pas de menu)
+if not "%~1"=="" goto :prepare
+
+REM Aucun argument : afficher le menu interactif
+:menu
+cls
+echo.
+echo ===========================================
+echo                 ALBERT CODE
+echo ===========================================
+echo.
+echo  1. Lancer Albert Code
+echo  2. Installer la commande "albert-code" dans le PATH utilisateur
+echo  3. Desinstaller la commande "albert-code" du PATH utilisateur
+echo  4. Quitter
+echo.
+set /p CHOICE=Choix [1-4] :
+echo.
+if "%CHOICE%"=="1" goto :prepare
+if "%CHOICE%"=="2" goto :do_install_path
+if "%CHOICE%"=="3" goto :do_uninstall_path
+if "%CHOICE%"=="4" exit /b 0
+echo Choix invalide.
+timeout /t 2 >nul
+goto :menu
+
+:do_install_path
+echo Ajout de "%SCRIPT_DIR%" au PATH utilisateur...
+powershell -NoProfile -Command "$dir = '%SCRIPT_DIR%'; $current = [Environment]::GetEnvironmentVariable('Path', 'User'); if ($current -notlike ('*' + $dir + '*')) { if ([string]::IsNullOrEmpty($current)) { $new = $dir } else { $new = $current.TrimEnd(';') + ';' + $dir }; [Environment]::SetEnvironmentVariable('Path', $new, 'User'); Write-Host 'Ajoute.' } else { Write-Host 'Deja present, aucun changement.' }"
+echo.
+echo Ouvrir une nouvelle fenetre Windows Terminal pour utiliser la commande "albert-code" depuis n'importe quel dossier.
+echo.
+pause
+goto :menu
+
+:do_uninstall_path
+echo Retrait de "%SCRIPT_DIR%" du PATH utilisateur...
+powershell -NoProfile -Command "$dir = '%SCRIPT_DIR%'; $current = [Environment]::GetEnvironmentVariable('Path', 'User'); if ([string]::IsNullOrEmpty($current)) { Write-Host 'PATH utilisateur vide, rien a faire.' } else { $entries = $current -split ';' | Where-Object { $_ -ne $dir -and $_ -ne '' }; $new = $entries -join ';'; [Environment]::SetEnvironmentVariable('Path', $new, 'User'); Write-Host 'Retire.' }"
+echo.
+pause
+goto :menu
+
+:prepare
 REM Verifier que python est disponible
 where python >nul 2>&1
 if errorlevel 1 (
-    echo Erreur : python introuvable. Installe Python 3.12+ avant de continuer.
+    echo Erreur : python introuvable. Installer Python 3.12+ avant de continuer.
     exit /b 1
 )
 
