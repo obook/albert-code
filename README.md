@@ -85,9 +85,55 @@ Taper `/help` pour afficher la liste de toutes les commandes disponibles. Quelqu
 - `/fallback` : active ou désactive le basculement automatique de modèle après deux 429 consécutifs (par défaut actif, bascule de `albert-code` vers `albert-large` pendant 60 s).
 - `/status` : affiche les statistiques de la session (étapes, tokens, coût).
 
+## Documentation complémentaire
+
+Les documents techniques détaillés sont dans le dossier [`docs/`](docs/) :
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) - architecture en couches du projet, flux de données, choix de conception.
+- [`docs/COMMANDES.md`](docs/COMMANDES.md) - liste exhaustive des commandes, options CLI, raccourcis clavier et outils intégrés.
+- [`docs/SECURITE.md`](docs/SECURITE.md) - fiche de sécurité, surface d'attaque, modèle de menaces, conformité RGPD.
+- [`docs/ACCESSIBILITE.md`](docs/ACCESSIBILITE.md) - déclaration d'accessibilité (RGAA 4.1).
+- [`docs/acp-setup.md`](docs/acp-setup.md) - intégration avec Zed, JetBrains et Neovim via Agent Client Protocol.
+- [`docs/proxy-setup.md`](docs/proxy-setup.md) - configuration du proxy HTTP.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) - mise en place de l'environnement de développement.
+- [`CHANGELOG.md`](CHANGELOG.md) - journal des modifications par version.
+
 ## Remerciements
 
 Ce fork s'inspire du projet [AlbertCode](https://github.com/XenocodeRCE/AlbertCode) de **Simon Roux** pour plusieurs idées clés liées à l'API Albert : auto-fallback de modèle sur 429 répétés, jauge RPM, mode plan-first avec checkpoints, snapshots Git automatiques avant édition. Les implémentations dans ce fork sont indépendantes mais doivent beaucoup à ses choix de conception.
+
+## Bibliothèques utilisées
+
+| Bibliothèque | Rôle | URL | Licence |
+|--------------|------|-----|---------|
+| agent-client-protocol | Implémentation Python du protocole ACP | https://github.com/zed-industries/agent-client-protocol | Apache 2.0 |
+| anyio | Compatibilité asyncio / trio | https://github.com/agronholm/anyio | MIT |
+| cachetools | Caches mémoire avec TTL et LRU | https://github.com/tkem/cachetools | MIT |
+| cryptography | Primitives cryptographiques | https://github.com/pyca/cryptography | Apache 2.0 / BSD 3-Clause |
+| GitPython | Manipulation de dépôts Git | https://github.com/gitpython-developers/GitPython | BSD 3-Clause |
+| giturlparse | Parser d'URL Git | https://github.com/nephila/giturlparse | Apache 2.0 |
+| google-auth | Authentification pour les API Google | https://github.com/googleapis/google-auth-library-python | Apache 2.0 |
+| httpx | Client HTTP synchrone et asynchrone | https://github.com/encode/httpx | BSD 3-Clause |
+| keyring | Accès au gestionnaire de mots de passe du système | https://github.com/jaraco/keyring | MIT |
+| markdownify | Conversion HTML vers Markdown | https://github.com/matthewwithanm/python-markdownify | MIT |
+| mcp | SDK Python pour Model Context Protocol | https://github.com/modelcontextprotocol/python-sdk | MIT |
+| mistralai | SDK Python pour l'API Mistral | https://github.com/mistralai/client-python | Apache 2.0 |
+| packaging | Utilitaires de packaging Python | https://github.com/pypa/packaging | Apache 2.0 / BSD 2-Clause |
+| pexpect | Contrôle de processus interactifs | https://github.com/pexpect/pexpect | ISC |
+| pydantic | Validation de données par annotations de type | https://github.com/pydantic/pydantic | MIT |
+| pydantic-settings | Gestion de configuration via Pydantic | https://github.com/pydantic/pydantic-settings | MIT |
+| pyperclip | Copier-coller multiplateforme | https://github.com/asweigart/pyperclip | BSD |
+| python-dotenv | Chargement de variables depuis `.env` | https://github.com/theskumar/python-dotenv | BSD 3-Clause |
+| PyYAML | Parser et serialiseur YAML | https://github.com/yaml/pyyaml | MIT |
+| requests | Client HTTP synchrone | https://github.com/psf/requests | Apache 2.0 |
+| Rich | Rendu coloré et formaté pour le terminal | https://github.com/Textualize/rich | MIT |
+| Textual | Cadre de TUI moderne | https://github.com/Textualize/textual | MIT |
+| textual-speedups | Optimisations pour Textual | https://github.com/Textualize/textual-speedups | MIT |
+| tomli-w | Écriture de fichiers TOML | https://github.com/hukkin/tomli-w | MIT |
+| tree-sitter | Parser incrémental | https://github.com/tree-sitter/tree-sitter | MIT |
+| tree-sitter-bash | Grammaire bash pour tree-sitter | https://github.com/tree-sitter/tree-sitter-bash | MIT |
+| watchfiles | Surveillance de fichiers basée sur Rust | https://github.com/samuelcolvin/watchfiles | MIT |
+| zstandard | Compression Zstandard pour Python | https://github.com/indygreg/python-zstandard | BSD 3-Clause |
 
 ## Licence
 
