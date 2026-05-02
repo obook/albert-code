@@ -136,7 +136,11 @@ def is_dangerous_directory(path: Path | str = ".") -> tuple[bool, str]:
 
 
 def get_user_agent(backend: Backend | None) -> str:
-    user_agent = f"albert-code/{__version__}"
+    # The user-agent is sent in HTTP headers to LLM providers. Some providers
+    # (notably Albert) appear to route requests to different rate-limit tiers
+    # based on the user-agent. Keep the historical `Mistral-Vibe/<version>`
+    # value here so downstream routing remains stable across the upstream rename.
+    user_agent = f"Mistral-Vibe/{__version__}"
     if backend == Backend.MISTRAL:
         mistral_sdk_prefix = "mistral-client-python/"
         user_agent = f"{mistral_sdk_prefix}{user_agent}"
