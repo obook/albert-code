@@ -24,8 +24,20 @@
 
 set -euo pipefail
 
-# Dossier du script (fonctionne meme si appele via un lien symbolique)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Dossier du script. On resout les liens symboliques manuellement pour que
+# `--install` (qui place un symlink dans ~/.local/bin/albert-code) ne fasse
+# pas pointer SCRIPT_DIR vers ~/.local/bin. La boucle est portable BSD/Linux,
+# contrairement a `readlink -f` qui n'existe pas sur macOS par defaut.
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+    SOURCE_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    case "$SOURCE" in
+        /*) ;;  # absolute already
+        *) SOURCE="$SOURCE_DIR/$SOURCE" ;;
+    esac
+done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 SYMLINK_PATH="$HOME/.local/bin/albert-code"
