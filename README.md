@@ -1,6 +1,6 @@
 # Albert Code 🇫🇷
 
-![Albert Code en cours d'utilisation dans le terminal](media/20260502_195508.png)
+<img src="media/20260502_195508.png" alt="Albert Code en cours d'utilisation dans le terminal" width="393" />
 
 **Assistant IA de programmation en ligne de commande, propulsé par l'API Albert.**
 
