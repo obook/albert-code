@@ -46,7 +46,7 @@ Sous Windows, utiliser `albert-code.bat` à la place de `albert-code.sh`.
 >
 > ### Utilisation avec Albert Code
 >
-> 1. Lancer **Windows Terminal** depuis le menu Démarrer (icône noire ornée d'un chevron).
+> 1. Ouvrir le menu Démarrer et taper **Terminal** (sous Windows, le programme est listé sous ce nom et non "Windows Terminal"). L'icône est noire et porte un chevron. Le lancer.
 > 2. Par défaut, Windows Terminal ouvre un onglet **PowerShell** : ce comportement est normal et tout à fait approprié. PowerShell est un shell parfaitement compatible avec Albert Code. Windows Terminal n'est qu'un *conteneur de terminal* ; le shell qu'il héberge importe peu (PowerShell, cmd, WSL, etc. fonctionnent tous).
 > 3. Se déplacer jusqu'au dossier d'Albert Code et lancer le `.bat` (le préfixe `.\` est requis sous PowerShell pour exécuter un script du dossier courant) :
 >
