@@ -41,6 +41,7 @@ from albert_code.core.middleware import (
     PriceLimitMiddleware,
     ReadOnlyAgentMiddleware,
     ResetReason,
+    TodoFocusMiddleware,
     TurnLimitMiddleware,
 )
 from albert_code.core.prompts import UtilityPrompt
@@ -435,6 +436,10 @@ class AgentLoop:
                     ContextWarningMiddleware(0.5, self.config.auto_compact_threshold)
                 )
 
+        # Re-inject the active todo list before every turn to fight attention
+        # drift on long sessions. Stateless, no-op when there are no todos.
+        self.middleware_pipeline.add(TodoFocusMiddleware())
+
         self.middleware_pipeline.add(
             ReadOnlyAgentMiddleware(
                 lambda: self.agent_profile,
@@ -499,8 +504,22 @@ class AgentLoop:
 
     def _get_context(self) -> ConversationContext:
         return ConversationContext(
-            messages=self.messages, stats=self.stats, config=self.config
+            messages=self.messages,
+            stats=self.stats,
+            config=self.config,
+            todos=self._snapshot_todos(),
         )
+
+    def _snapshot_todos(self) -> list[Any]:
+        """Return a list of TodoItem held by the `todo` tool, or [] if absent."""
+        try:
+            todo_tool = self.tool_manager.get("todo")
+        except Exception:
+            return []
+        state = getattr(todo_tool, "state", None)
+        if state is None:
+            return []
+        return list(getattr(state, "todos", []) or [])
 
     def _get_extra_headers(self, provider: ProviderConfig) -> dict[str, str]:
         headers: dict[str, str] = {
@@ -529,6 +548,7 @@ class AgentLoop:
 
         try:
             should_break_loop = False
+            auto_continue_count = 0
             while not should_break_loop:
                 result = await self.middleware_pipeline.run_before_turn(
                     self._get_context()
@@ -553,8 +573,55 @@ class AgentLoop:
                 if user_cancelled:
                     return
 
+                if (
+                    should_break_loop
+                    and self._should_auto_continue(last_message, auto_continue_count)
+                ):
+                    auto_continue_count += 1
+                    self._append_auto_continue_message()
+                    should_break_loop = False
+
         finally:
             await self._save_messages()
+
+    _MAX_AUTO_CONTINUE_PER_USER_INPUT = 3
+
+    def _should_auto_continue(
+        self, last_message: LLMMessage, count: int
+    ) -> bool:
+        """Decide whether to auto-prompt the agent to keep going.
+
+        Returns True only if:
+          - the agent ended its turn cleanly (assistant message, no tool call),
+          - the auto-continue budget for this user input is not exhausted,
+          - the todo list still has pending or in-progress steps.
+        """
+        if count >= self._MAX_AUTO_CONTINUE_PER_USER_INPUT:
+            return False
+        if last_message.role != Role.assistant:
+            return False
+        unfinished = [
+            t for t in self._snapshot_todos()
+            if getattr(t, "status", None) is not None
+            and t.status.value not in {"completed", "cancelled"}
+        ]
+        return bool(unfinished)
+
+    def _append_auto_continue_message(self) -> None:
+        """Inject a synthetic user message that nudges the agent to keep going.
+
+        Used when there are unfinished todos but the model stopped early.
+        """
+        self.messages.append(
+            LLMMessage(
+                role=Role.user,
+                content=(
+                    "<continue> The plan is not finished yet. Look at the "
+                    "<vibe-focus> block above and continue with the next "
+                    "unchecked step. Do not ask for confirmation."
+                ),
+            )
+        )
 
     async def _perform_llm_turn(self) -> AsyncGenerator[BaseEvent, None]:
         if self.enable_streaming:

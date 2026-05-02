@@ -10,6 +10,7 @@ from albert_code.core.utils import VIBE_WARNING_TAG
 
 if TYPE_CHECKING:
     from albert_code.core.config import VibeConfig
+    from albert_code.core.tools.builtins.todo import TodoItem
     from albert_code.core.types import AgentStats, MessageList
 
 
@@ -30,6 +31,7 @@ class ConversationContext:
     messages: MessageList
     stats: AgentStats
     config: VibeConfig
+    todos: list[TodoItem] = field(default_factory=list)
 
 
 @dataclass
@@ -127,6 +129,75 @@ class ContextWarningMiddleware:
 
     def reset(self, reset_reason: ResetReason = ResetReason.STOP) -> None:
         self.has_warned = False
+
+
+VIBE_FOCUS_TAG = "vibe-focus"
+_TODO_STATUS_GLYPH: dict[str, str] = {
+    "completed": "[x]",
+    "in_progress": "[>]",
+    "cancelled": "[-]",
+    "pending": "[ ]",
+}
+
+
+def _format_initial_user_goal(messages: MessageList) -> str | None:
+    """Return a one-line summary of the first user message of the session.
+
+    Used by TodoFocusMiddleware to remind the agent of the original goal.
+    """
+    for msg in messages:
+        if msg.role.value != "user":
+            continue
+        content = msg.content
+        if isinstance(content, str) and content.strip():
+            first_line = content.strip().splitlines()[0]
+            return first_line[:200]
+    return None
+
+
+class TodoFocusMiddleware:
+    """Re-inject the active todo list and the original user goal at every turn.
+
+    LLMs drift when the conversation grows beyond a few turns: the system
+    prompt and earlier instructions get diluted by tool outputs and assistant
+    replies. This middleware fixes that by pushing a short, structured
+    `<vibe-focus>` block right before each LLM call so the agent always sees
+    the goal and the next pending step at the bottom of its context.
+
+    No-op when no todos are stored.
+    """
+
+    async def before_turn(self, context: ConversationContext) -> MiddlewareResult:
+        todos = context.todos
+        if not todos:
+            return MiddlewareResult()
+
+        unfinished = [t for t in todos if t.status.value not in {"completed", "cancelled"}]
+        if not unfinished:
+            return MiddlewareResult()
+
+        goal = _format_initial_user_goal(context.messages)
+        lines: list[str] = [f"<{VIBE_FOCUS_TAG}>"]
+        if goal:
+            lines.append(f"Original goal: {goal}")
+        lines.append("Active plan (do not lose track of this):")
+        for todo in todos:
+            glyph = _TODO_STATUS_GLYPH.get(todo.status.value, "[ ]")
+            lines.append(f"  {glyph} {todo.content}")
+        lines.append(
+            "Continue from the first unchecked step. "
+            "If a step is in progress, finish it before moving on."
+        )
+        lines.append(f"</{VIBE_FOCUS_TAG}>")
+
+        return MiddlewareResult(
+            action=MiddlewareAction.INJECT_MESSAGE,
+            message="\n".join(lines),
+        )
+
+    def reset(self, reset_reason: ResetReason = ResetReason.STOP) -> None:
+        # Stateless. Reset is a no-op.
+        return
 
 
 PLAN_AGENT_REMINDER = f"""<{VIBE_WARNING_TAG}>Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits, run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supersedes any other instructions you have received (for example, to make edits). Instead, you should:
