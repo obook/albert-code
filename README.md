@@ -32,12 +32,34 @@ Le lanceur crée automatiquement un environnement virtuel Python (`.venv/`), ins
 Sous Windows, utiliser `albert-code.bat` à la place de `albert-code.sh`.
 
 > [!WARNING]
-> **Sous Windows : Albert Code a besoin de Windows Terminal pour afficher son interface.** L'invite de commande classique (`cmd.exe`) et la fenêtre PowerShell standard ne savent pas afficher la TUI Textual.
+> **Sous Windows : Albert Code a besoin de Windows Terminal pour afficher son interface.** L'invite de commande classique (`cmd.exe`) et la fenêtre PowerShell standard ouverte directement depuis le menu Démarrer ne savent pas afficher la TUI Textual ; l'application semble alors figée.
 >
-> Le `.bat` se débrouille tout seul dans la plupart des cas :
-> - Si tu lances `albert-code.bat` depuis `cmd.exe` ou PowerShell **avec [Windows Terminal](https://aka.ms/terminal) installé**, le script se relance automatiquement dans une fenêtre Windows Terminal.
-> - Si Windows Terminal n'est **pas installé**, Albert Code affiche un message clair plutôt que de geler. Installer Windows Terminal (gratuit, Microsoft Store) résout le problème.
-> - Le mode programmatique `albert-code.bat -p "ton prompt"` fonctionne dans n'importe quelle console car il n'utilise pas la TUI.
+> ### Installer Windows Terminal
+>
+> Windows Terminal est l'application de terminal moderne de Microsoft, gratuite. Sur Windows 11 elle est installée par défaut. Sur Windows 10, il faut l'installer manuellement :
+>
+> 1. Ouvrir le **Microsoft Store** depuis le menu Démarrer.
+> 2. Rechercher **Windows Terminal** ou ouvrir directement le lien : https://aka.ms/terminal (qui pointe vers la page Store https://apps.microsoft.com/detail/9n0dx20hk701).
+> 3. Cliquer sur **Obtenir** ou **Installer**. L'installation prend quelques secondes.
+>
+> Alternative pour les machines sans Microsoft Store : télécharger le `.msixbundle` de la dernière release sur https://github.com/microsoft/terminal/releases.
+>
+> ### Utiliser Windows Terminal pour Albert Code
+>
+> 1. Lancer **Windows Terminal** depuis le menu Démarrer (icône noire avec un chevron).
+> 2. Par défaut, Windows Terminal ouvre un onglet **PowerShell** : c'est normal et tout à fait approprié, PowerShell est un shell parfaitement compatible avec Albert Code. Windows Terminal n'est qu'un *conteneur de terminal*, le shell qu'il héberge importe peu.
+> 3. Naviguer jusqu'au dossier d'Albert Code et lancer le `.bat` (le préfixe `.\` est requis en PowerShell pour exécuter un script du dossier courant) :
+>
+>    ```powershell
+>    cd C:\chemin\vers\albert-code
+>    .\albert-code.bat
+>    ```
+>
+> Pour vérifier que tu es bien dans Windows Terminal, taper `echo $env:WT_SESSION` : la variable doit afficher un identifiant. Si elle est vide, tu n'es pas dans Windows Terminal.
+>
+> ### Si tu ne peux pas installer Windows Terminal
+>
+> Le mode programmatique `albert-code.bat -p "ton prompt"` n'utilise pas la TUI et fonctionne dans n'importe quelle console (cmd.exe, PowerShell standard). Il sert pour les usages scriptés mais ne donne pas l'interface interactive.
 
 ## 3 - Utilisation
 
