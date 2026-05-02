@@ -7,7 +7,10 @@ from textual.widgets import Static
 
 from albert_code import __version__
 
-_BLUE = "#002395"
+# Tricolor inspired by the French flag, but lifted toward more luminous
+# values so the logo stays readable on dark terminals. The textbook
+# `#002395` flag blue is too dim against a black background.
+_BLUE = "#318CE7"  # "Bleu de France" (lighter than the official #002395)
 _WHITE = "#FFFFFF"
 _RED = "#ED2939"
 
