@@ -2,7 +2,9 @@
 extend-exclude = [
     "ACCESSIBILITE.md",
     "ARCHITECTURE.md",
+    "CHANGELOG.md",
     "COMMANDES.md",
+    "CONTRIBUTING.md",
     "README.md",
     "SECURITE.md",
     "albert-code.sh",

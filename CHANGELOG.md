@@ -1,431 +1,430 @@
-# Changelog
+# Journal des modifications
 
-All notable changes to this project will be documented in this file.
+Toutes les modifications notables de ce projet sont consignées dans ce fichier.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Le format suit [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) et le projet adhère au [versionnage sémantique](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Non publié]
 
-### Added
+### Ajouté
 
-- Albert API quota fetching via `GET /v1/me/info` (module `albert_code/core/llm/quota.py`).
-- Slash commands `/limits` (and alias `/quota`) showing per-router rpm/rpd/tpm/tpd as a Markdown table.
-- Adaptive client-side throttler (`albert_code/core/llm/throttling.py`): rolling 60s windows for requests and tokens, sleeps before hitting the most permissive `rpm`/`tpm` limit.
-- 429 handling: reads `Retry-After` (header per RFC 7231 plus best-effort regex on bodies that mention `"N requests per minute"`).
-- Auto-fallback on repeated 429: after 2 consecutive 429 on a model, the agent switches to its `ModelConfig.fallback_model` for 60 seconds, then restores. Default Albert mapping `albert-code` -> `albert-large`.
-- Slash command `/fallback` to toggle the auto-fallback strategy ON/OFF (`auto_fallback_enabled` config key).
-- UI toasts on auto-fallback transitions (activated / restored).
-- Incremental XML tool-call parser for streamed Qwen responses (`XmlToolCallStreamParser`); restores Albert streaming previously gated behind `force_non_streaming`.
-- Provider field `streaming_xml_tool_calls` to opt into the XML stream parser.
-- ASCII tricolor logo `AlbertLogo` (replaces the small French-flag widget).
-- Footer model indicator showing `⚙ alias (short-name)` for the active model.
-- `albert-code.sh` and `albert-code.bat` launchers that bootstrap a Python venv and install in editable mode (with a SHA-256 marker on `pyproject.toml` to refresh dependencies on changes).
+- Récupération des quotas de l'API Albert via `GET /v1/me/info` (module `albert_code/core/llm/quota.py`).
+- Commandes slash `/limits` (et alias `/quota`) qui affichent les rpm / rpd / tpm / tpd par routeur sous forme de tableau Markdown.
+- Limiteur côté client adaptatif (`albert_code/core/llm/throttling.py`) : fenêtres glissantes de 60 s pour les requêtes et les tokens, mise en attente avant d'atteindre la limite `rpm` / `tpm` la plus permissive.
+- Gestion des 429 : lecture de `Retry-After` (en-tête conforme RFC 7231 plus regex de secours sur les corps qui mentionnent `"N requests per minute"`).
+- Auto-fallback sur 429 répétés : après 2 réponses 429 consécutives sur un modèle, l'agent bascule sur son `ModelConfig.fallback_model` pendant 60 s puis restaure le modèle initial. Mapping Albert par défaut : `albert-code` -> `albert-large`.
+- Commande slash `/fallback` pour activer ou désactiver la stratégie d'auto-fallback (clé de configuration `auto_fallback_enabled`).
+- Toasts d'interface lors des transitions d'auto-fallback (activation, restauration).
+- Parser incrémental d'appels d'outils XML pour les réponses Qwen en streaming (`XmlToolCallStreamParser`) ; restaure le streaming Albert qui était auparavant bridé par `force_non_streaming`.
+- Champ de provider `streaming_xml_tool_calls` pour activer ce parser de flux XML.
+- Logo tricolore ASCII `AlbertLogo` (remplace le petit widget de drapeau français).
+- Indicateur de modèle en pied d'interface affichant `⚙ alias (nom-court)` pour le modèle actif.
+- Lanceurs `albert-code.sh` et `albert-code.bat` qui amorcent un venv Python et installent en mode editable (avec un marqueur SHA-256 sur `pyproject.toml` pour rafraîchir les dépendances en cas de changement).
 
-### Changed
+### Changé
 
-- Build/install/CI no longer use `uv`. Project is now installed via standard `python -m venv` + `pip install -e .`. Workflows, `action.yml`, and install scripts have been ported.
-- `textual` pinned to `>=7.4.0,<8.1` to keep the `textual-ansi` theme available (it was renamed to `ansi-dark` upstream in 8.1).
-- `OpenAIAdapter.parse_response` no longer attempts XML extraction on streaming chunks; the incremental parser handles them.
-- Native non-streaming `tool_calls` returned without `index` (Albert/vLLM) are now post-processed to receive a sequential index, fixing `Tool call chunk missing index` during accumulation.
-- Rate-limit error message in the UI no longer references the Mistral "Pro" plan; points to `/limits` instead.
+- Build, installation et CI n'utilisent plus `uv`. Le projet s'installe désormais via `python -m venv` standard puis `pip install -e .`. Workflows, `action.yml` et scripts d'installation ont été portés.
+- `textual` épinglé en `>=7.4.0,<8.1` pour conserver le thème `textual-ansi` (renommé en `ansi-dark` en amont à partir de la 8.1).
+- `OpenAIAdapter.parse_response` ne tente plus l'extraction XML sur les chunks de streaming ; le parser incrémental les prend en charge.
+- Les `tool_calls` natifs non-streamés renvoyés sans `index` (Albert / vLLM) sont post-traités pour recevoir un index séquentiel, ce qui corrige `Tool call chunk missing index` lors de l'accumulation.
+- Le message d'erreur de rate limit dans l'interface ne référence plus le plan "Pro" de Mistral ; il pointe vers `/limits`.
 
-### Fixed
+### Corrigé
 
-- `/v1/me/info` parsing: `id` may be returned as int by Albert; coerced to string via a Pydantic `field_validator`. `extra="ignore"` lets the model accept any additional fields without breaking.
-- `get_active_model()` now resolves by alias and falls back to lookup by `name`, so configs that store the full model id in `active_model` resolve correctly.
+- Parsing de `/v1/me/info` : `id` peut être renvoyé comme entier par Albert ; converti en chaîne via un `field_validator` Pydantic. `extra="ignore"` permet au modèle d'accepter tout champ supplémentaire sans casser.
+- `get_active_model()` résout désormais par alias et tombe en repli sur la recherche par `name`, ce qui permet aux configurations qui stockent l'identifiant complet du modèle dans `active_model` d'être résolues correctement.
 
 ## [2.3.0] - 2026-02-27
 
-### Added
+### Ajouté
 
-- /resume command to choose which session to resume
-- Web search and web fetch tools for retrieving and searching web content
-- MCP sampling support: MCP servers can request LLM completions via the sampling protocol
-- MCP server discovery cache (`MCPRegistry`): survives agent switches without re-discovering unchanged servers
-- Chat mode for ACP (`session/set_config_options` with `mode=chat`)
-- ACP `session/set_config_options` support for switching mode and model
-- Tool call streaming: tool call arguments are now streamed incrementally in the UI
-- Notification indicator in CLI: terminal bell and window title change on action required or completion
-- Subagent traces saved in `agents/` subfolder of parent session directory
-- IDE detection in `new_session` telemetry
-- Discover agents, tools, and skills in subfolders of trusted directories (monorepo support)
-- E2E test infrastructure for CLI TUI
+- Commande `/resume` pour choisir la session à reprendre.
+- Outils web search et web fetch pour rechercher et récupérer du contenu web.
+- Support du sampling MCP : les serveurs MCP peuvent demander des complétions LLM via le protocole de sampling.
+- Cache de découverte des serveurs MCP (`MCPRegistry`) : survit aux changements d'agent sans redécouvrir les serveurs inchangés.
+- Mode chat pour ACP (`session/set_config_options` avec `mode=chat`).
+- Support `session/set_config_options` côté ACP pour changer de mode et de modèle.
+- Streaming des appels d'outils : les arguments d'appel d'outil sont désormais streamés de façon incrémentale dans l'interface.
+- Indicateur de notification dans la CLI : sonnerie du terminal et changement de titre de fenêtre quand une action est requise ou achevée.
+- Traces des sous-agents enregistrées dans le sous-dossier `agents/` du répertoire de session parent.
+- Détection de l'IDE dans la télémétrie `new_session`.
+- Découverte des agents, outils et compétences dans les sous-dossiers des répertoires de confiance (support des monorepos).
+- Infrastructure de tests E2E pour la TUI CLI.
 
-### Changed
+### Changé
 
-- System prompts rewritten for improved model behavior (3-phase Orient/Plan/Execute workflow, brevity rules)
-- Tool call display refactored with `ToolCallDisplay`/`ToolResultDisplay` models and per-tool UI customization
-- Middleware pipeline replaces observer pattern for system message injections
-- Improved permission handling for `write_file`, `read_file`, `search_replace` (allowlist/denylist globs, out-of-cwd detection)
-- Proxy setup UI updated with guided bottom-panel wizard
-- Smoother color transitions in CLI loader animation
-- Dead tool state classes removed (`Grep`, `ReadFile`, `WriteFile` state)
+- Prompts système réécrits pour améliorer le comportement du modèle (workflow en 3 phases Orient / Plan / Execute, règles de concision).
+- Affichage des appels d'outils refactorisé avec les modèles `ToolCallDisplay` / `ToolResultDisplay` et personnalisation d'interface par outil.
+- Pipeline de middlewares qui remplace le pattern observateur pour les injections de messages système.
+- Gestion des permissions améliorée pour `write_file`, `read_file`, `search_replace` (globs allowlist / denylist, détection des chemins hors répertoire courant).
+- Interface de configuration de proxy mise à jour avec un assistant guidé en bas de panneau.
+- Transitions de couleur plus fluides dans l'animation de chargement CLI.
+- Suppression des classes d'état d'outil mortes (`Grep`, `ReadFile`, `WriteFile`).
 
-### Fixed
+### Corrigé
 
-- Agent switch (Shift+Tab) no longer freezes the UI (moved to thread worker)
-- Empty assistant messages are no longer displayed
-- Tool results returned to LLM in correct order matching tool calls
-- Auto-scroll suspended when user has scrolled up; resumes at bottom
-- Retry and timeout handling in Mistral backend (backoff strategy, configurable timeout)
+- Le changement d'agent (Shift+Tab) ne fige plus l'interface (déplacé dans un thread worker).
+- Les messages assistant vides ne sont plus affichés.
+- Les résultats d'outils sont renvoyés au LLM dans l'ordre correspondant aux appels d'outils.
+- L'auto-scroll est suspendu quand l'utilisateur a remonté ; reprend en bas.
+- Gestion des retries et des timeouts dans le backend Mistral (stratégie de backoff, timeout configurable).
 
-### Removed
+### Retiré
 
 
 ## [2.2.1] - 2026-02-18
 
-### Added
+### Ajouté
 
-- Multiple clipboard copy strategies: OSC52 first, then pyperclip fallback when system clipboard is available (e.g. local GUI, SSH without OSC52)
-- Ctrl+Z to put Vibe in background
+- Plusieurs stratégies de copie dans le presse-papiers : OSC52 d'abord, puis fallback pyperclip quand le presse-papiers système est disponible (par exemple GUI locale, SSH sans OSC52).
+- Ctrl+Z pour mettre Vibe en arrière-plan.
 
-### Changed
+### Changé
 
-- Improve performance around streaming and scrolling
-- File watcher is now opt-out by default; opt-in via config
-- Bump Textual version in dependencies
-- Inline code styling: yellow bold with transparent background for better readability
+- Performances améliorées autour du streaming et du défilement.
+- Le surveillance de fichiers est désormais opt-out par défaut ; opt-in via la configuration.
+- Montée de version de Textual dans les dépendances.
+- Style du code inline : gras jaune sur fond transparent pour une meilleure lisibilité.
 
-### Fixed
+### Corrigé
 
-- Banner: sync skills count after initial app mount (fixes wrong count in some cases)
-- Collapsed tool results: strip newlines in truncation to remove extra blank line
-- Context token widget: preserve stats listeners across `/clear` so token percentage updates correctly
-- Vertex AI: cache credentials to avoid blocking the event loop on every LLM request
-- Bash tool: remove `NO_COLOR` from subprocess env to fix snapshot tests and colored output
+- Bandeau : synchronisation du compteur de skills après le mount initial de l'application (corrige un compteur erroné dans certains cas).
+- Résultats d'outils repliés : suppression des sauts de ligne lors de la troncature pour retirer une ligne vide superflue.
+- Widget de tokens de contexte : préservation des listeners de stats à travers `/clear` pour que le pourcentage de tokens se mette à jour correctement.
+- Vertex AI : mise en cache des credentials pour éviter de bloquer la boucle d'événements à chaque requête LLM.
+- Outil bash : suppression de `NO_COLOR` de l'environnement du sous-processus pour réparer les tests de snapshot et la sortie colorée.
 
 
 ## [2.2.0] - 2026-02-17
 
-### Added
+### Ajouté
 
-- Google Vertex AI support
-- Telemetry: user interaction and tool usage events sent to datalake (configurable via `enable_telemetry`)
-- Skill discovery from `.agents/skills/` (Agent Skills standard) in addition to `.vibe/skills/`
-- ACP: `session/load` and `session/list` for loading and listing sessions
-- New model behavior prompts (CLI and explore)
-- Proxy Wizard (PoC) for CLI and for ACP
-- Proxy setup documentation
-- Documentation for JetBrains ACP registry
+- Support de Google Vertex AI.
+- Télémétrie : événements d'interaction utilisateur et d'usage des outils envoyés vers le datalake (configurable via `enable_telemetry`).
+- Découverte des skills depuis `.agents/skills/` (standard Agent Skills) en plus de `.vibe/skills/`.
+- ACP : `session/load` et `session/list` pour charger et lister les sessions.
+- Nouveaux prompts de comportement de modèle (CLI et explore).
+- Assistant Proxy (PoC) pour la CLI et pour ACP.
+- Documentation de la configuration de proxy.
+- Documentation pour le registre ACP JetBrains.
 
-### Changed
+### Changé
 
-- Trusted folders: presence of `.agents` is now considered trustable content
-- Logging handling updated
-- Pin `cryptography` to >=44.0.0,<=46.0.3; uv sync for cryptography
+- Dossiers de confiance : la présence de `.agents` est désormais considérée comme un contenu digne de confiance.
+- Gestion des logs mise à jour.
+- `cryptography` épinglé en `>=44.0.0,<=46.0.3` ; uv sync pour cryptography.
 
-### Fixed
+### Corrigé
 
-- Auto scroll when switching to input
-- MCP stdio: redirect stderr to logger to avoid unwanted console output
-- Align `pyproject.toml` minimum versions with `uv.lock` for pip installs
-- Middleware injection: use standalone user messages instead of mutating flushed messages
-- Revert cryptography 46.0.5 bump for compatibility
-- Pin banner version in UI snapshot tests for stability
+- Auto-scroll lors du basculement vers la zone de saisie.
+- MCP stdio : redirection de stderr vers le logger pour éviter les sorties indésirables sur la console.
+- Alignement des versions minimales de `pyproject.toml` avec `uv.lock` pour les installations pip.
+- Injection de middleware : utilisation de messages utilisateur autonomes plutôt que de muter des messages déjà envoyés.
+- Annulation du bump de cryptography 46.0.5 pour la compatibilité.
+- Version de bandeau épinglée dans les tests de snapshot d'interface pour la stabilité.
 
 
 ## [2.1.0] - 2026-02-11
 
-### Added
+### Ajouté
 
-- Incremental load of long sessions: windowing (20 messages), "Load more" to fetch older messages, scroll to bottom when resuming
-- ACP support for thinking (agent-client-protocol 0.8.0)
-- Support for FIFO path for env file
+- Chargement incrémental des sessions longues : fenêtrage (20 messages), bouton "Load more" pour récupérer les messages plus anciens, défilement vers le bas à la reprise.
+- Support ACP du thinking (agent-client-protocol 0.8.0).
+- Support des chemins FIFO pour le fichier d'environnement.
 
-### Changed
+### Changé
 
-- **UI redesign**: new look and layout for the CLI
-- Textual UI optimizations: ChatScroll to reduce style recalculations, VerticalGroup for messages, stream layout for streaming blocks, cached DOM queries
-- Bumped agent-client-protocol to 0.8.0
-- Use UTC date for timestamps
-- Clipboard behavior improvements
-- Docs updated for GitHub discussions
-- Made the Upgrade to Pro banner less prominent
+- **Refonte de l'interface :** nouvelle apparence et nouvelle disposition pour la CLI.
+- Optimisations de l'interface Textual : ChatScroll pour réduire les recalculs de style, VerticalGroup pour les messages, layout en flux pour les blocs en streaming, requêtes DOM mises en cache.
+- Montée de version d'agent-client-protocol en 0.8.0.
+- Utilisation de la date UTC pour les horodatages.
+- Améliorations du comportement du presse-papiers.
+- Documentation mise à jour pour les discussions GitHub.
+- Bandeau de mise à niveau Pro rendu moins proéminent.
 
-### Fixed
+### Corrigé
 
-- Fixed inaccurate token count in UI in some cases
-- Fixed agent prompt overrides being ignored
-- Terminal setup: avoid overwriting Wezterm config
+- Compteur de tokens dans l'interface inexact dans certains cas.
+- Les surcharges de prompt d'agent étaient ignorées.
+- Configuration du terminal : ne plus écraser la configuration Wezterm.
 
-### Removed
+### Retiré
 
-- Legacy terminal theme module and agent indicator widget
-- Standalone onboarding theme selection screen (replaced by redesign)
+- Module de thème terminal hérité et widget d'indicateur d'agent.
+- Écran d'onboarding de sélection de thème (remplacé par la refonte).
 
 
 ## [2.0.2] - 2026-01-30
 
-### Added
+### Ajouté
 
-- Allow environment variables to be overridden by dotenv files
-- Display custom rate limit messages depending on plan type
+- Les variables d'environnement peuvent désormais être surchargées par des fichiers dotenv.
+- Affichage de messages de rate limit personnalisés selon le type de plan.
 
-### Changed
+### Changé
 
-- Made plan offer message more discreet in UI
-- Speed up latest session scan and harden validation
-- Updated pytest-xdist configuration to schedule single test chunks
+- Message d'offre de plan rendu plus discret dans l'interface.
+- Scan de la dernière session accéléré et validation durcie.
+- Configuration pytest-xdist mise à jour pour planifier des chunks de tests unitaires.
 
-### Fixed
+### Corrigé
 
-- Prevent duplicate messages in persisted sessions
-- Fix ACP bash tool to pass full command string for chained commands
-- Fix global agent prompt not being loaded correctly
-- Do not propose to "resume" when there is nothing to resume
+- Suppression des doublons de messages dans les sessions persistées.
+- Outil bash ACP : passage de la chaîne de commande complète pour les commandes chaînées.
+- Le prompt d'agent global n'était pas chargé correctement.
+- Ne plus proposer de "reprendre" quand il n'y a rien à reprendre.
 
 
 ## [2.0.1] - 2026-01-28
 
-### Fixed
+### Corrigé
 
-- Fix encoding issues in Windows
+- Problèmes d'encodage sous Windows.
 
 
 ## [2.0.0] - 2026-01-27
 
-### Added
+### Ajouté
 
-- Subagent support
-- AskUserQuestion tool for interactive user input
-- User-defined slash commands through skills
-- What's new message display on version update
-- Auto-update feature
-- Environment variables and timeout support for MCP servers
-- Editor shortcut support
-- Shift+enter support for VS Code Insiders
-- Message ID property for messages
-- Client notification of compaction events
-- debugpy support for macOS debugging
+- Support des sous-agents.
+- Outil AskUserQuestion pour la saisie utilisateur interactive.
+- Commandes slash personnalisées via les skills.
+- Affichage du message "What's new" lors d'une mise à jour de version.
+- Fonctionnalité d'auto-update.
+- Variables d'environnement et timeout pour les serveurs MCP.
+- Support des raccourcis d'éditeur.
+- Support de Shift+Enter pour VS Code Insiders.
+- Propriété d'identifiant de message pour les messages.
+- Notification client des événements de compaction.
+- Support de debugpy pour le débogage macOS.
 
-### Changed
+### Changé
 
-- Mode system refactored to Agents
-- Standardized managers
-- Improved system prompt
-- Updated session storage to separate metadata from messages
-- Use shell environment to determine shell in bash tool
-- Expanded user input handling
-- Bumped agent-client-protocol to 0.7.1
-- Refactored UI to require AgentLoop at VibeApp construction
-- Updated README with new MCP server config
-- Improved readability of the AskUserQuestion tool output
+- Système de modes refactorisé en Agents.
+- Standardisation des managers.
+- Prompt système amélioré.
+- Stockage de session mis à jour pour séparer les métadonnées des messages.
+- Utilisation de l'environnement shell pour déterminer le shell dans l'outil bash.
+- Gestion étendue de la saisie utilisateur.
+- Montée de version d'agent-client-protocol en 0.7.1.
+- Refactorisation de l'interface pour exiger un AgentLoop à la construction de VibeApp.
+- README mis à jour avec la nouvelle configuration des serveurs MCP.
+- Lisibilité améliorée de la sortie de l'outil AskUserQuestion.
 
-### Fixed
+### Corrigé
 
-- Use ensure_ascii=False for all JSON dumps
-- Delete long-living temporary session files
-- Ignore system prompt when saving/loading session messages
-- Bash tool timeout handling
-- Clipboard: no markup parsing of selected texts
-- Canonical imports
-- Remove last user message from compaction
-- Pause tool timer while awaiting user action
+- Utilisation de `ensure_ascii=False` pour tous les `json.dumps`.
+- Suppression des fichiers temporaires de session de longue durée.
+- Le prompt système est ignoré lors de la sauvegarde et du chargement des messages de session.
+- Gestion du timeout de l'outil bash.
+- Presse-papiers : pas de parsing de markup sur les textes sélectionnés.
+- Imports canoniques.
+- Suppression du dernier message utilisateur lors de la compaction.
+- Pause du timer d'outil pendant l'attente d'une action utilisateur.
 
-### Removed
+### Retiré
 
-- instructions.md support
-- workdir setting in config file
+- Support de `instructions.md`.
+- Réglage `workdir` dans le fichier de configuration.
 
 
 ## [1.3.5] - 2026-01-12
 
-### Fixed
+### Corrigé
 
-- bash tool not discovered by vibe-acp
+- Outil bash non découvert par vibe-acp.
 
 ## [1.3.4] - 2026-01-07
 
-### Fixed
+### Corrigé
 
-- markup in blinking messages
-- safety around Bash and AGENTS.md
-- explicit permissions to GitHub Actions workflows
-- improve render performance in long sessions
+- Markup dans les messages clignotants.
+- Robustesse autour de Bash et de AGENTS.md.
+- Permissions explicites pour les workflows GitHub Actions.
+- Performances de rendu améliorées dans les sessions longues.
 
 ## [1.3.3] - 2025-12-26
 
-### Fixed
+### Corrigé
 
-- Fix config desyncing issues
+- Problèmes de désynchronisation de la configuration.
 
 ## [1.3.2] - 2025-12-24
 
-### Added
+### Ajouté
 
-- User definable reasoning field
+- Champ de reasoning définissable par l'utilisateur.
 
-### Fixed
+### Corrigé
 
-- Fix rendering issue with spinner
+- Problème de rendu du spinner.
 
 ## [1.3.1] - 2025-12-24
 
-### Fixed
+### Corrigé
 
-- Fix crash when continuing conversation
-- Fix Nix flake to not export python
+- Crash lors de la reprise de conversation.
+- Flake Nix qui n'exporte plus python.
 
 ## [1.3.0] - 2025-12-23
 
-### Added
+### Ajouté
 
-- agentskills.io support
-- Reasoning support
-- Native terminal theme support
-- Issue templates for bug reports and feature requests
-- Auto update zed extension on release creation
+- Support d'agentskills.io.
+- Support du reasoning.
+- Support des thèmes natifs du terminal.
+- Templates de tickets pour les rapports de bug et les demandes de fonctionnalité.
+- Mise à jour automatique de l'extension Zed lors de la création d'une release.
 
-### Changed
+### Changé
 
-- Improve ToolUI system with better rendering and organization
-- Use pinned actions in CI workflows
-- Remove 100k -> 200k tokens config migration
+- Système ToolUI amélioré avec un meilleur rendu et une meilleure organisation.
+- Utilisation d'actions épinglées dans les workflows CI.
+- Suppression de la migration de configuration 100k -> 200k tokens.
 
-### Fixed
+### Corrigé
 
-- Fix `-p` mode to auto-approve tool calls
-- Fix crash when switching mode
-- Fix some cases where clipboard copy didn't work
+- Mode `-p` qui auto-approuve les appels d'outils.
+- Crash lors d'un changement de mode.
+- Certains cas où la copie dans le presse-papiers ne fonctionnait pas.
 
 ## [1.2.2] - 2025-12-22
 
-### Fixed
+### Corrigé
 
-- Remove dead code
-- Fix artefacts automatically attached to the release
-- Refactor agent post streaming
+- Suppression de code mort.
+- Artefacts attachés automatiquement à la release.
+- Refactorisation de l'agent post-streaming.
 
 ## [1.2.1] - 2025-12-18
 
-### Fixed
+### Corrigé
 
-- Improve error message when running in home dir
-- Do not show trusted folder workflow in home dir
+- Message d'erreur amélioré lors de l'exécution dans le répertoire home.
+- Pas d'affichage du workflow de dossier de confiance dans le répertoire home.
 
 ## [1.2.0] - 2025-12-18
 
-### Added
+### Ajouté
 
-- Modular mode system
-- Trusted folder mechanism for local .vibe directories
-- Document public setup for vibe-acp in zed, jetbrains and neovim
-- `--version` flag
+- Système de modes modulaire.
+- Mécanisme de dossiers de confiance pour les répertoires `.vibe` locaux.
+- Documentation publique de la configuration de vibe-acp pour Zed, JetBrains et Neovim.
+- Drapeau `--version`.
 
-### Changed
+### Changé
 
-- Improve UI based on feedback
-- Remove unnecessary logging and flushing for better performance
-- Update textual
-- Update nix flake
-- Automate binary attachment to GitHub releases
+- Interface améliorée selon les retours.
+- Suppression des logs et flushs inutiles pour de meilleures performances.
+- Mise à jour de Textual.
+- Mise à jour du flake Nix.
+- Automatisation de l'attachement des binaires aux releases GitHub.
 
-### Fixed
+### Corrigé
 
-- Prevent segmentation fault on exit by shutting down thread pools
-- Fix extra spacing with assistant message
+- Prévention des segmentation faults à la sortie via l'arrêt propre des thread pools.
+- Espacement excessif avec les messages de l'assistant.
 
 ## [1.1.3] - 2025-12-12
 
-### Added
+### Ajouté
 
-- Add more copy_to_clipboard methods to support all cases
-- Add bindings to scroll chat history
+- Méthodes `copy_to_clipboard` supplémentaires pour couvrir tous les cas.
+- Bindings pour faire défiler l'historique du chat.
 
-### Changed
+### Changé
 
-- Relax config to accept extra inputs
-- Remove useless stats from assistant events
-- Improve scroll actions while streaming
-- Do not check for updates more than once a day
-- Use PyPI in update notifier
+- Configuration assouplie pour accepter des entrées supplémentaires.
+- Suppression des stats inutiles des événements de l'assistant.
+- Actions de défilement améliorées pendant le streaming.
+- Plus d'une vérification de mise à jour par jour exclue.
+- Utilisation de PyPI dans le notifier de mise à jour.
 
-### Fixed
+### Corrigé
 
-- Fix tool permission handling for "allow always" option in ACP
-- Fix security issue: prevent command injection in GitHub Action prompt handling
-- Fix issues with vLLM
+- Gestion des permissions d'outils pour l'option "allow always" en ACP.
+- Faille de sécurité : prévention des injections de commande dans la gestion de prompt de la GitHub Action.
+- Problèmes avec vLLM.
 
 ## [1.1.2] - 2025-12-11
 
-### Changed
+### Changé
 
-- add `terminal-auth` auth method to ACP agent only if the client supports it
-- fix `user-agent` header when using Mistral backend, using SDK hook
+- Méthode d'authentification `terminal-auth` ajoutée à l'agent ACP uniquement si le client la prend en charge.
+- En-tête `user-agent` corrigé pour le backend Mistral via un hook du SDK.
 
 ## [1.1.1] - 2025-12-10
 
-### Changed
+### Changé
 
-- added `include_commit_signature` in `config.toml` to disable signing commits
+- Ajout de `include_commit_signature` dans `config.toml` pour désactiver la signature des commits.
 
 ## [1.1.0] - 2025-12-10
 
-### Fixed
+### Corrigé
 
-- fixed crash in some rare instances when copy-pasting
+- Crash dans certains cas rares lors d'un copier-coller.
 
-### Changed
+### Changé
 
-- improved context length from 100k to 200k
+- Longueur de contexte étendue de 100k à 200k.
 
 ## [1.0.6] - 2025-12-10
 
-### Fixed
+### Corrigé
 
-- add missing steps in bump_version script
-- move `pytest-xdist` to dev dependencies
-- take into account config for bash timeout
+- Étapes manquantes dans le script `bump_version`.
+- Déplacement de `pytest-xdist` dans les dépendances de développement.
+- Prise en compte de la configuration pour le timeout de bash.
 
-### Changed
+### Changé
 
-- improve textual performance
-- improve README:
-  - improve windows installation instructions
-  - update default system prompt reference
-  - document MCP tool permission configuration
+- Performances de Textual améliorées.
+- README amélioré :
+  - instructions d'installation Windows clarifiées ;
+  - référence du prompt système par défaut mise à jour ;
+  - configuration des permissions d'outils MCP documentée.
 
 ## [1.0.5] - 2025-12-10
 
-### Fixed
+### Corrigé
 
-- Fix streaming with OpenAI adapter
+- Streaming corrigé sur l'adaptateur OpenAI.
 
 ## [1.0.4] - 2025-12-09
 
-### Changed
+### Changé
 
-- Rename agent in distribution/zed/extension.toml to albert-code
+- Renommage de l'agent dans `distribution/zed/extension.toml` en albert-code.
 
-### Fixed
+### Corrigé
 
-- Fix icon and description in distribution/zed/extension.toml
+- Icône et description corrigées dans `distribution/zed/extension.toml`.
 
-### Removed
+### Retiré
 
-- Remove .envrc file
+- Suppression du fichier `.envrc`.
 
 ## [1.0.3] - 2025-12-09
 
-### Added
+### Ajouté
 
-- Add LICENCE symlink in distribution/zed for compatibility with zed extension release process
+- Lien symbolique LICENCE dans `distribution/zed` pour la compatibilité avec le processus de release de l'extension Zed.
 
 ## [1.0.2] - 2025-12-09
 
-### Fixed
+### Corrigé
 
-- Fix setup flow for vibe-acp builds
+- Flux de configuration corrigé pour les builds de vibe-acp.
 
 ## [1.0.1] - 2025-12-09
 
-### Fixed
+### Corrigé
 
-- Fix update notification
+- Notification de mise à jour corrigée.
 
 ## [1.0.0] - 2025-12-09
 
-### Added
+### Ajouté
 
-- Initial release
+- Première version publique.

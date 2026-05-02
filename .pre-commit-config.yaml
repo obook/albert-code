@@ -32,4 +32,4 @@ repos:
     hooks:
       - id: typos
         args: [--write-changes]
-        exclude: '__snapshots__/.*\.svg$|^(ACCESSIBILITE|ARCHITECTURE|COMMANDES|README|SECURITE)\.md$|^albert-code\.(sh|bat)$|^\.pre-commit-config\.yaml$'
+        exclude: '__snapshots__/.*\.svg$|^(ACCESSIBILITE|ARCHITECTURE|CHANGELOG|COMMANDES|CONTRIBUTING|README|SECURITE)\.md$|^albert-code\.(sh|bat)$|^\.pre-commit-config\.yaml$'

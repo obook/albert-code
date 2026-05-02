@@ -1,62 +1,62 @@
-# Contributing to Albert Code
+# Contribuer à Albert Code
 
-Thank you for your interest in Albert Code! We appreciate your enthusiasm and support.
+Merci de l'intérêt que vous portez à Albert Code. Votre enthousiasme et votre soutien sont appréciés.
 
-## Current Status
+## Statut actuel
 
-**Albert Code is in active development** — our team is iterating quickly and making lots of changes under the hood. Because of this pace, we may be slower than usual when reviewing PRs and issues.
+**Albert Code est en développement actif.** Le rythme d'itération est soutenu et de nombreux changements ont lieu en coulisses. À cause de ce rythme, la revue des PR et des tickets peut prendre plus de temps que d'habitude.
 
-**We especially encourage**:
+**Sont particulièrement encouragés :**
 
-- **Bug reports** – Help us uncover and squash issues
-- **Feedback & ideas** – Tell us what works, what doesn't, and what could be even better
-- **Documentation improvements** – Suggest clarity improvements or highlight missing pieces
+- **Les rapports de bug** - aider à identifier et à corriger les problèmes.
+- **Les retours et idées** - dire ce qui fonctionne, ce qui ne fonctionne pas, et ce qui pourrait être amélioré.
+- **Les améliorations de documentation** - suggérer des clarifications ou signaler ce qui manque.
 
-## How to Provide Feedback
+## Comment faire un retour
 
-### Bug Reports
+### Rapports de bug
 
-If you encounter a bug, please open an issue with the following information:
+En cas de bug, ouvrir un ticket en fournissant les éléments suivants :
 
-1. **Description**: A clear description of the bug
-2. **Steps to Reproduce**: Detailed steps to reproduce the issue
-3. **Expected Behavior**: What you expected to happen
-4. **Actual Behavior**: What actually happened
-5. **Environment**:
-   - Python version
-   - Operating system
-   - Vibe version
-6. **Error Messages**: Any error messages or stack traces
-7. **Configuration**: Relevant parts of your `config.toml` (redact any sensitive information)
+1. **Description :** description claire du bug.
+2. **Étapes pour reproduire :** procédure détaillée pour reproduire le problème.
+3. **Comportement attendu :** ce qui aurait dû se produire.
+4. **Comportement réel :** ce qui s'est effectivement produit.
+5. **Environnement :**
+   - version de Python ;
+   - système d'exploitation ;
+   - version d'Albert Code.
+6. **Messages d'erreur :** messages ou traces d'erreur observés.
+7. **Configuration :** extraits pertinents du `config.toml` (en masquant toute information sensible).
 
-### Feature Requests and Feedback
+### Demandes de fonctionnalité et retours
 
-We'd love to hear your ideas! When submitting feedback or feature request discussions:
+Les idées sont les bienvenues. Quand vous soumettez un retour ou une discussion sur une nouvelle fonctionnalité :
 
-1. **Avoid duplicates**: Check opened discussions before creating a new one
-2. **Clear Description**: Explain what you'd like to see or improve
-3. **Use Case**: Describe your use case and why this would be valuable
-4. **Alternatives**: If applicable, mention any alternatives you've considered
+1. **Éviter les doublons :** consulter les discussions existantes avant d'en créer une nouvelle.
+2. **Description claire :** expliquer ce que vous souhaitez voir ou améliorer.
+3. **Cas d'usage :** décrire votre cas d'usage et l'intérêt que cela présenterait.
+4. **Alternatives :** mentionner les solutions de remplacement éventuellement envisagées.
 
-## Development Setup
+## Mise en place du développement
 
-This section is for developers who want to set up the repository for local development, even though we're not currently accepting contributions.
+Cette section s'adresse aux développeurs qui souhaitent installer le dépôt en local, même si nous n'acceptons pas encore les contributions de code.
 
-### Prerequisites
+### Prérequis
 
-- Python 3.12 or higher
-- A working `python3` with `venv` and `pip` (no need for uv)
+- Python 3.12 ou supérieur.
+- Un `python3` fonctionnel avec `venv` et `pip` (`uv` n'est pas nécessaire).
 
-### Setup
+### Installation
 
-1. Clone the repository:
+1. Cloner le dépôt :
 
    ```bash
-   git clone <repository-url>
+   git clone <url-du-depot>
    cd albert-code
    ```
 
-2. Create a virtual environment and install dependencies:
+2. Créer un environnement virtuel et installer les dépendances :
 
    ```bash
    python3 -m venv .venv
@@ -65,125 +65,124 @@ This section is for developers who want to set up the repository for local devel
    pip install pre-commit pytest pytest-asyncio pytest-timeout pytest-xdist respx ruff pyright typos vulture
    ```
 
-   The first command installs runtime dependencies declared in `pyproject.toml`.
-   The second installs the dev tools used by tests, lint and type checks.
+   La première commande installe les dépendances d'exécution déclarées dans `pyproject.toml`. La seconde installe les outils de développement utilisés pour les tests, le lint et le typage.
 
-3. (Optional) Install pre-commit hooks:
+3. (Optionnel) Installer les hooks pre-commit :
 
    ```bash
    pre-commit install
    ```
 
-   Pre-commit hooks will automatically run checks before each commit.
+   Les hooks pre-commit lanceront automatiquement les vérifications avant chaque commit.
 
-### Logging Configuration
+### Configuration des journaux
 
-Logs are written to `~/.vibe/logs/vibe.log` by default. Control logging via environment variables:
+Les logs sont écrits par défaut dans `~/.albert-code/logs/`. Le comportement de journalisation se contrôle via des variables d'environnement :
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LOG_LEVEL` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) | `WARNING` |
-| `LOG_MAX_BYTES` | Max log file size in bytes before rotation | `10485760` (10 MB) |
-| `DEBUG_MODE` | When `true`, forces `DEBUG` level | - |
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `LOG_LEVEL` | Niveau de log (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) | `WARNING` |
+| `LOG_MAX_BYTES` | Taille maximale du fichier de log avant rotation | `10485760` (10 Mo) |
+| `DEBUG_MODE` | Si `true`, force le niveau `DEBUG` | - |
 
-Example:
+Exemple :
 
 ```bash
-LOG_LEVEL=DEBUG vibe
+LOG_LEVEL=DEBUG albert-code
 ```
 
-### Running Tests
+### Lancer les tests
 
-Run all tests:
+Lancer la totalité des tests :
 
 ```bash
 pytest
 ```
 
-Run tests with verbose output:
+Lancer les tests en mode verbeux :
 
 ```bash
 pytest -v
 ```
 
-Run a specific test file:
+Lancer un fichier de test précis :
 
 ```bash
 pytest tests/test_agent_tool_call.py
 ```
 
-### Linting and Type Checking
+### Lint et typage
 
-#### Ruff (Linting and Formatting)
+#### Ruff (lint et formatage)
 
-Check for linting issues (without fixing):
+Vérifier les erreurs de lint sans correction :
 
 ```bash
 ruff check .
 ```
 
-Auto-fix linting issues:
+Corriger automatiquement les erreurs de lint :
 
 ```bash
 ruff check --fix .
 ```
 
-Format code:
+Formater le code :
 
 ```bash
 ruff format .
 ```
 
-Check formatting without modifying files (useful for CI):
+Vérifier le formatage sans modifier les fichiers (utile en CI) :
 
 ```bash
 ruff format --check .
 ```
 
-#### Pyright (Type Checking)
+#### Pyright (typage)
 
-Run type checking:
+Lancer la vérification de typage :
 
 ```bash
 pyright
 ```
 
-#### Pre-commit Hooks
+#### Hooks pre-commit
 
-Run all pre-commit hooks manually:
+Lancer manuellement tous les hooks pre-commit :
 
 ```bash
 pre-commit run --all-files
 ```
 
-The pre-commit hooks include:
+Les hooks pre-commit comprennent :
 
-- Ruff (linting and formatting)
-- Pyright (type checking)
-- Typos (spell checking)
-- YAML/TOML validation
-- Action validator (for GitHub Actions)
+- Ruff (lint et formatage) ;
+- Pyright (typage) ;
+- Typos (orthographe) ;
+- validation YAML / TOML ;
+- Action-validator (workflows GitHub Actions).
 
-### Code Style
+### Style de code
 
-- **Line length**: 88 characters (Black-compatible)
-- **Type hints**: Required for all functions and methods
-- **Docstrings**: Follow Google-style docstrings
-- **Formatting**: Use Ruff for both linting and formatting
-- **Type checking**: Use Pyright (configured in `pyproject.toml`)
+- **Longueur de ligne :** 88 caractères (compatible Black).
+- **Annotations de type :** obligatoires pour toutes les fonctions et méthodes.
+- **Docstrings :** style Google.
+- **Formatage :** Ruff assure le lint et le formatage.
+- **Typage :** Pyright (configuré dans `pyproject.toml`).
 
-See `pyproject.toml` for detailed configuration of Ruff and Pyright.
+Voir `pyproject.toml` pour la configuration détaillée de Ruff et Pyright.
 
-## Code Contributions
+## Contributions de code
 
-While we're not accepting code contributions at the moment, we may open up contributions in the future. When that happens, we'll update this document with:
+Les contributions de code ne sont pas acceptées pour le moment, mais elles le seront peut-être à l'avenir. Le cas échéant, ce document sera mis à jour avec :
 
-- Pull request process
-- Contribution guidelines
-- Review process
+- la procédure de pull request ;
+- les règles de contribution ;
+- la procédure de revue.
 
-## Questions?
+## Des questions ?
 
-If you have questions about using Albert Code, please check the [README](README.md) first. For other inquiries, feel free to open a discussion or issue.
+Pour les questions sur l'utilisation d'Albert Code, consulter d'abord le [README](README.md). Pour le reste, ouvrir une discussion ou un ticket.
 
-Thank you for helping make Albert Code better! 🙏
+Merci de contribuer à l'amélioration d'Albert Code.
