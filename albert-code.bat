@@ -17,12 +17,36 @@ REM Aucun argument : verifier d'abord la console avant d'afficher le menu.
 REM Le menu et la TUI ne fonctionnent que dans Windows Terminal.
 if not "%WT_SESSION%"=="" goto :menu
 echo.
-echo La console actuelle ne supporte pas l'interface d'Albert Code.
-echo L'invite de commande classique ^(cmd.exe^) ne sait pas afficher la TUI Textual.
+echo ===========================================================
+echo  Console non supportee
+echo ===========================================================
 echo.
-echo Solutions :
-echo   1. Installer Windows Terminal ^(https://aka.ms/terminal^) et y relancer ce .bat.
-echo   2. Utiliser le mode programmatique sans TUI : albert-code.bat -p "votre prompt"
+echo L'invite de commande classique ^(cmd.exe^) ne sait pas afficher
+echo l'interface d'Albert Code. Il faut utiliser Windows Terminal.
+echo.
+echo --- Si Windows Terminal n'est pas installe ---
+echo.
+echo   1. Ouvrir le Microsoft Store depuis le menu Demarrer.
+echo   2. Rechercher "Windows Terminal" ou ouvrir https://aka.ms/terminal
+echo   3. Cliquer sur "Obtenir" ou "Installer".
+echo.
+echo --- Une fois Windows Terminal installe ---
+echo.
+echo   1. Fermer cette fenetre.
+echo   2. Ouvrir Windows Terminal depuis le menu Demarrer
+echo      ^(rechercher "Terminal" ; icone noire avec un chevron^).
+echo   3. Dans Windows Terminal, taper :
+echo.
+echo         cd "%SCRIPT_DIR%"
+echo         .\albert-code.bat
+echo.
+echo --- Alternative sans interface graphique ---
+echo.
+echo   Le mode programmatique fonctionne dans cette console :
+echo.
+echo         albert-code.bat -p "votre prompt"
+echo.
+echo ===========================================================
 echo.
 pause
 exit /b 1
