@@ -126,3 +126,94 @@ class TestXmlToolCallStreamParserFlush:
         leftover_safe, leftover_calls = parser.flush()
         assert leftover_safe == ""
         assert leftover_calls == []
+
+
+class TestXmlToolCallStreamParserBareFunction:
+    """Coverage for Llama-style tool calls without `<tool_call>` wrapper.
+
+    Some models (Llama 3.x, functionary, ...) emit tool calls with bare
+    `<function=name>...</function>` tags, sometimes with a stray
+    `</tool_call>` closing without a matching opening. The parser must
+    extract these as tool calls rather than emit them as plain text.
+    """
+
+    def test_bare_function_block_in_single_chunk(self) -> None:
+        parser = _make_parser()
+        text = (
+            "<function=write_file>"
+            "<parameter=path>solution.py</parameter>"
+            "<parameter=content>print(42)</parameter>"
+            "</function>"
+        )
+        safe, calls = parser.feed(text)
+        assert safe.strip() == ""
+        assert len(calls) == 1
+        assert calls[0].function.name == "write_file"
+        args = json.loads(calls[0].function.arguments or "{}")
+        assert args == {"path": "solution.py", "content": "print(42)"}
+
+    def test_bare_function_split_across_chunks(self) -> None:
+        parser = _make_parser()
+        chunks = [
+            "<function=",
+            "write_file",
+            ">",
+            "<parameter=path>",
+            "solution.py",
+            "</parameter>",
+            "<parameter=content>",
+            "print(42)",
+            "</parameter>",
+            "</function>",
+        ]
+        all_safe: list[str] = []
+        all_calls: list = []
+        for chunk in chunks:
+            safe, calls = parser.feed(chunk)
+            all_safe.append(safe)
+            all_calls.extend(calls)
+        assert "".join(all_safe).strip() == ""
+        assert len(all_calls) == 1
+        assert all_calls[0].function.name == "write_file"
+
+    def test_bare_function_closed_with_tool_call_only(self) -> None:
+        """Malformed model output: missing `</function>`, only `</tool_call>`."""
+        parser = _make_parser()
+        text = (
+            "<function=write_file>"
+            "<parameter=path>solution.py</parameter>"
+            "<parameter=content>print(42)</parameter>"
+            "</tool_call>"
+        )
+        safe, calls = parser.feed(text)
+        assert safe.strip() == ""
+        assert len(calls) == 1
+        assert calls[0].function.name == "write_file"
+
+    def test_text_before_bare_function_is_emitted(self) -> None:
+        parser = _make_parser()
+        text = (
+            "Voici le code demande :\n"
+            "<function=write_file>"
+            "<parameter=path>solution.py</parameter>"
+            "<parameter=content>print(42)</parameter>"
+            "</function>"
+        )
+        safe, calls = parser.feed(text)
+        assert "Voici le code demande" in safe
+        assert "<function=" not in safe
+        assert len(calls) == 1
+
+    def test_partial_function_open_held_back(self) -> None:
+        parser = _make_parser()
+        # `<func` could be the start of `<function=...>`: must not be emitted.
+        safe, calls = parser.feed("answer <func")
+        assert calls == []
+        assert safe == "answer "
+
+    def test_partial_function_open_released_when_no_match(self) -> None:
+        parser = _make_parser()
+        parser.feed("answer <func")
+        safe, calls = parser.feed("tioning")
+        assert calls == []
+        assert safe == "<functioning"

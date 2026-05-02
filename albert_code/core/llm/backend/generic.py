@@ -256,17 +256,29 @@ ADAPTERS: dict[str, APIAdapter] = {
 
 _TOOL_CALL_OPEN = "<tool_call>"
 _TOOL_CALL_CLOSE = "</tool_call>"
+_FN_OPEN_PREFIX = "<function="
+_FN_CLOSE = "</function>"
+_FN_OPEN_RE = re.compile(r"<function=\w+>")
+# Trailing fragment that could be the start of `<function=name>` once more
+# text arrives. Matches `<`, `<f`, ..., `<function`, `<function=`, `<function=foo`.
+_FN_OPEN_PARTIAL_RE = re.compile(
+    r"<(?:f(?:u(?:n(?:c(?:t(?:i(?:o(?:n(?:=\w*)?)?)?)?)?)?)?)?)?$"
+)
 
 
 class XmlToolCallStreamParser:
-    """Incremental parser for Qwen-style XML tool calls in a streamed content.
+    """Incremental parser for XML-style tool calls in a streamed content.
 
-    Albert/vLLM emits Qwen tool calls as XML inside `delta.content`, split
-    across many small SSE chunks (e.g. `<tool_call>`, `\\n`, `<`, `function`,
-    `=read`, `_file`, `>`, ...). This parser accumulates a buffer, yields
-    only the text that is safe to display (i.e. text not inside a tool call,
-    and not the trailing fragment of a partial opening tag), and emits
-    `ToolCall` objects whenever a `</tool_call>` block is fully received.
+    Albert/vLLM emits tool calls as XML inside `delta.content`, split across
+    many small SSE chunks (e.g. `<tool_call>`, `\\n`, `<`, `function`,
+    `=read`, `_file`, `>`, ...). The parser also handles the bare
+    `<function=name>...</function>` form emitted by Llama-style models,
+    even when the `<tool_call>` wrapper is missing or malformed.
+
+    The parser accumulates a buffer, yields only the text that is safe to
+    display (i.e. text not inside a tool call, and not the trailing fragment
+    of a partial opening tag), and emits `ToolCall` objects whenever a
+    complete tool call block is received.
     """
 
     def __init__(self, adapter: OpenAIAdapter) -> None:
@@ -287,7 +299,7 @@ class XmlToolCallStreamParser:
         self._buffer = ""
         if not leftover:
             return "", []
-        if _TOOL_CALL_OPEN in leftover or "<function=" in leftover:
+        if _TOOL_CALL_OPEN in leftover or _FN_OPEN_PREFIX in leftover:
             cleaned, tool_calls = self._adapter._extract_xml_tool_calls(
                 leftover, start_index=self._next_tool_index
             )
@@ -295,41 +307,82 @@ class XmlToolCallStreamParser:
             return cleaned, tool_calls
         return leftover, []
 
+    def _find_open(self) -> tuple[int, str]:
+        """Earliest opening marker as (index, kind). Returns (-1, '') if none.
+
+        `kind` is either 'tc' (`<tool_call>`) or 'fn' (`<function=...>`).
+        """
+        tc_open = self._buffer.find(_TOOL_CALL_OPEN)
+        fn_match = _FN_OPEN_RE.search(self._buffer)
+        fn_open = fn_match.start() if fn_match else -1
+        candidates = []
+        if tc_open >= 0:
+            candidates.append((tc_open, "tc"))
+        if fn_open >= 0:
+            candidates.append((fn_open, "fn"))
+        return min(candidates) if candidates else (-1, "")
+
+    def _find_close(self, open_kind: str, after: int) -> tuple[int, int]:
+        """Earliest matching close marker after `after`. Returns (idx, length).
+
+        For `<tool_call>` openers, only `</tool_call>` is accepted. For bare
+        `<function=...>` openers, either `</function>` or `</tool_call>` is
+        accepted (whichever comes first), to tolerate malformed model output.
+        """
+        if open_kind == "tc":
+            idx = self._buffer.find(_TOOL_CALL_CLOSE, after)
+            return (idx, len(_TOOL_CALL_CLOSE)) if idx >= 0 else (-1, 0)
+        fn_close_idx = self._buffer.find(_FN_CLOSE, after)
+        tc_close_idx = self._buffer.find(_TOOL_CALL_CLOSE, after)
+        candidates = []
+        if fn_close_idx >= 0:
+            candidates.append((fn_close_idx, len(_FN_CLOSE)))
+        if tc_close_idx >= 0:
+            candidates.append((tc_close_idx, len(_TOOL_CALL_CLOSE)))
+        return min(candidates) if candidates else (-1, 0)
+
+    def _trailing_partial_open_length(self) -> int:
+        """Length of the trailing fragment that could be the start of an opener."""
+        tc_partial = _partial_tag_suffix_length(self._buffer, _TOOL_CALL_OPEN)
+        fn_match = _FN_OPEN_PARTIAL_RE.search(self._buffer)
+        fn_partial = (
+            len(self._buffer) - fn_match.start() if fn_match and fn_match.group() else 0
+        )
+        return max(tc_partial, fn_partial)
+
     def _drain(self) -> tuple[str, list[ToolCall]]:
         safe_parts: list[str] = []
         new_calls: list[ToolCall] = []
         while True:
-            open_idx = self._buffer.find(_TOOL_CALL_OPEN)
-            close_idx = self._buffer.find(_TOOL_CALL_CLOSE)
+            open_idx, open_kind = self._find_open()
 
-            both_present = open_idx >= 0 and close_idx > open_idx
-            if both_present:
-                safe_parts.append(self._buffer[:open_idx])
-                end = close_idx + len(_TOOL_CALL_CLOSE)
-                tool_block = self._buffer[open_idx:end]
-                _, parsed = self._adapter._extract_xml_tool_calls(
-                    tool_block, start_index=self._next_tool_index
-                )
-                self._next_tool_index += len(parsed)
-                new_calls.extend(parsed)
-                self._buffer = self._buffer[end:]
-                continue
+            if open_idx < 0:
+                partial = self._trailing_partial_open_length()
+                if partial == 0:
+                    safe_parts.append(self._buffer)
+                    self._buffer = ""
+                else:
+                    safe_parts.append(self._buffer[:-partial])
+                    self._buffer = self._buffer[-partial:]
+                break
 
-            if open_idx >= 0:
+            close_idx, close_len = self._find_close(open_kind, open_idx)
+            if close_idx < 0:
                 # Open tag seen, close tag not yet: emit prefix, keep the rest.
                 safe_parts.append(self._buffer[:open_idx])
                 self._buffer = self._buffer[open_idx:]
                 break
 
-            # No open tag: emit everything except a possible partial-opening suffix.
-            partial = _partial_tag_suffix_length(self._buffer, _TOOL_CALL_OPEN)
-            if partial == 0:
-                safe_parts.append(self._buffer)
-                self._buffer = ""
-            else:
-                safe_parts.append(self._buffer[:-partial])
-                self._buffer = self._buffer[-partial:]
-            break
+            end = close_idx + close_len
+            safe_parts.append(self._buffer[:open_idx])
+            tool_block = self._buffer[open_idx:end]
+            _, parsed = self._adapter._extract_xml_tool_calls(
+                tool_block, start_index=self._next_tool_index
+            )
+            self._next_tool_index += len(parsed)
+            new_calls.extend(parsed)
+            self._buffer = self._buffer[end:]
+            continue
 
         return "".join(safe_parts), new_calls
 
