@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 import json
 import os
 from pathlib import Path
+import sys
 from typing import Any
 
 from acp import (
@@ -193,7 +194,7 @@ async def get_acp_agent_loop_process(
     mock_env: dict[str, str], vibe_home: Path
 ) -> AsyncGenerator[asyncio.subprocess.Process]:
     current_env = os.environ.copy()
-    cmd = ["uv", "run", MOCK_ENTRYPOINT_PATH]
+    cmd = [sys.executable, MOCK_ENTRYPOINT_PATH]
 
     env = dict(current_env)
     env.update(mock_env)
