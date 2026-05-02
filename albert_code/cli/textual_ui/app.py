@@ -223,7 +223,7 @@ class VibeApp(App):  # noqa: PLR0904
         self._terminal_notifier = terminal_notifier or TextualNotificationAdapter(
             self,
             get_enabled=lambda: self.config.enable_notifications,
-            default_title="Vibe",
+            default_title="Albert Code",
         )
         self._agent_running = False
         self._interrupt_requested = False
