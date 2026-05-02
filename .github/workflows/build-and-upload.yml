@@ -57,48 +57,68 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
-      - name: Install uv with caching
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
-        with:
-          version: "latest"
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
+          cache: pip
 
-      - name: Sync dependencies
-        run: uv sync --no-dev --group build
+      - name: Install package and PyInstaller
+        shell: bash
+        run: |
+          python -m venv .venv
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            source .venv/Scripts/activate
+          else
+            source .venv/bin/activate
+          fi
+          pip install --upgrade pip
+          pip install -e .
+          pip install "pyinstaller>=6.17.0"
 
-      - name: Build with PyInstaller
-        run: uv run --no-dev --group build pyinstaller vibe-acp.spec
+      - name: Build with PyInstaller (Unix)
+        if: ${{ matrix.os != 'windows' }}
+        run: |
+          source .venv/bin/activate
+          pyinstaller albert-acp.spec
 
-      - name: Get package version with uv (Unix)
+      - name: Build with PyInstaller (Windows)
+        if: ${{ matrix.os == 'windows' }}
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\Activate.ps1
+          pyinstaller albert-acp.spec
+
+      - name: Get package version (Unix)
         id: get_version_unix
         if: ${{ matrix.os != 'windows' }}
-        run: python -c "import subprocess; version = subprocess.check_output(['uv', 'version']).decode().split()[1]; print(f'version={version}')" >> $GITHUB_OUTPUT
+        run: |
+          source .venv/bin/activate
+          version=$(python -c "from importlib.metadata import version; print(version('albert-code'))")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Get package version with uv (Windows)
+      - name: Get package version (Windows)
         id: get_version_windows
         if: ${{ matrix.os == 'windows' }}
         shell: pwsh
-        run: python -c "import subprocess; version = subprocess.check_output(['uv', 'version']).decode().split()[1]; print(f'version={version}')" >> $env:GITHUB_OUTPUT
+        run: |
+          .\.venv\Scripts\Activate.ps1
+          $version = python -c "from importlib.metadata import version; print(version('albert-code'))"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Upload binary as artifact (Unix)
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: ${{ matrix.os != 'windows' }}
         with:
-          name: vibe-acp-${{ matrix.os }}-${{ matrix.arch }}-${{ steps.get_version_unix.outputs.version }}
-          path: dist/vibe-acp
+          name: albert-acp-${{ matrix.os }}-${{ matrix.arch }}-${{ steps.get_version_unix.outputs.version }}
+          path: dist/albert-acp
 
       - name: Upload binary as artifact (Windows)
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: ${{ matrix.os == 'windows' }}
         with:
-          name: vibe-acp-${{ matrix.os }}-${{ matrix.arch }}-${{ steps.get_version_windows.outputs.version }}
-          path: dist/vibe-acp.exe
+          name: albert-acp-${{ matrix.os }}-${{ matrix.arch }}-${{ steps.get_version_windows.outputs.version }}
+          path: dist/albert-acp.exe
 
   attach-to-release:
     needs: build-and-upload
@@ -117,11 +137,11 @@ jobs:
           mkdir release-assets
           for dir in artifacts/*; do
             name=$(basename "$dir")
-            if [ -f "$dir/vibe-acp" ]; then
-              chmod +x "$dir/vibe-acp"
-              zip -j "release-assets/${name}.zip" "$dir/vibe-acp"
-            elif [ -f "$dir/vibe-acp.exe" ]; then
-              zip -j "release-assets/${name}.zip" "$dir/vibe-acp.exe"
+            if [ -f "$dir/albert-acp" ]; then
+              chmod +x "$dir/albert-acp"
+              zip -j "release-assets/${name}.zip" "$dir/albert-acp"
+            elif [ -f "$dir/albert-acp.exe" ]; then
+              zip -j "release-assets/${name}.zip" "$dir/albert-acp.exe"
             fi
           done
 

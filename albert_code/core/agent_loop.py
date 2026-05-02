@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from albert_code.cli.terminal_setup import detect_terminal
 from albert_code.core.agents.manager import AgentManager
 from albert_code.core.agents.models import AgentProfile, BuiltinAgentName
-from albert_code.core.config import Backend, ProviderConfig, VibeConfig
+from albert_code.core.config import Backend, ModelConfig, ProviderConfig, VibeConfig
 from albert_code.core.llm.backend.factory import BACKEND_FACTORY
 from albert_code.core.llm.exceptions import BackendError
 from albert_code.core.llm.format import (
@@ -26,6 +26,7 @@ from albert_code.core.llm.format import (
     ResolvedToolCall,
 )
 from albert_code.core.llm.types import BackendLike
+from albert_code.core.logger import logger
 from albert_code.core.middleware import (
     CHAT_AGENT_EXIT,
     CHAT_AGENT_REMINDER,
@@ -105,7 +106,10 @@ except ImportError:
 if TYPE_CHECKING:
     from albert_code.core.teleport.nuage import TeleportSession
     from albert_code.core.teleport.teleport import TeleportService
-    from albert_code.core.teleport.types import TeleportPushResponseEvent, TeleportYieldEvent
+    from albert_code.core.teleport.types import (
+        TeleportPushResponseEvent,
+        TeleportYieldEvent,
+    )
 
 
 class ToolExecutionResponse(StrEnum):
@@ -196,6 +200,8 @@ class AgentLoop:
         self.entrypoint_metadata = entrypoint_metadata
         self.session_id = str(uuid4())
         self._current_user_message_id: str | None = None
+        self._fallback_observer: Callable[[str, str, float], None] | None = None
+        self._last_resolved_model_alias: str | None = None
 
         self.telemetry_client = TelemetryClient(config_getter=lambda: self.config)
         self.session_logger = SessionLogger(config.session_logging, self.session_id)
@@ -264,6 +270,83 @@ class AgentLoop:
         provider = self.config.get_provider_for_model(active_model)
         timeout = self.config.api_timeout
         return BACKEND_FACTORY[provider.backend](provider=provider, timeout=timeout)
+
+    def set_fallback_observer(
+        self, observer: Callable[[str, str, float], None] | None
+    ) -> None:
+        """Register a callback notified on auto-fallback transitions.
+
+        Called with (event_kind, message, remaining_seconds) where
+        `event_kind` is "activated" or "restored".
+        """
+        self._fallback_observer = observer
+
+    def _notify_fallback(
+        self, kind: str, message: str, remaining_seconds: float
+    ) -> None:
+        observer = getattr(self, "_fallback_observer", None)
+        if observer is None:
+            return
+        try:
+            observer(kind, message, remaining_seconds)
+        except Exception:
+            logger.debug("Fallback observer raised", exc_info=True)
+
+    def _resolve_model_with_fallback(self) -> ModelConfig:
+        """Pick the model to use for the next call.
+
+        If the configured primary model has a `fallback_model` and the
+        provider's throttler has armed an auto-fallback (e.g. after several
+        consecutive 429), redirect to the fallback model. Otherwise use the
+        primary as-is. Emits notifications on transitions.
+        """
+        from albert_code.core.llm.throttling import get_throttler
+
+        primary = self.config.get_active_model()
+        previous_alias = getattr(self, "_last_resolved_model_alias", primary.alias)
+
+        if not primary.fallback_model or not self.config.auto_fallback_enabled:
+            self._last_resolved_model_alias = primary.alias
+            return primary
+
+        provider = self.config.get_provider_for_model(primary)
+        throttler = get_throttler(provider)
+        if not throttler.should_fallback(primary.alias):
+            if previous_alias != primary.alias:
+                self._notify_fallback(
+                    "restored",
+                    f"Fallback expired, back to {primary.alias}",
+                    0.0,
+                )
+            self._last_resolved_model_alias = primary.alias
+            return primary
+
+        for candidate in self.config.models:
+            if candidate.alias == primary.fallback_model:
+                remaining = throttler.fallback_remaining_seconds(primary.alias)
+                logger.info(
+                    "Auto-fallback: %s -> %s (remaining %.1fs)",
+                    primary.alias,
+                    candidate.alias,
+                    remaining,
+                )
+                if previous_alias != candidate.alias:
+                    self._notify_fallback(
+                        "activated",
+                        f"Auto-fallback: {primary.alias} -> {candidate.alias} "
+                        f"for ~{int(remaining)}s",
+                        remaining,
+                    )
+                self._last_resolved_model_alias = candidate.alias
+                return candidate
+
+        logger.warning(
+            "Auto-fallback misconfigured: %s.fallback_model=%r not found",
+            primary.alias,
+            primary.fallback_model,
+        )
+        self._last_resolved_model_alias = primary.alias
+        return primary
 
     async def _save_messages(self) -> None:
         await self.session_logger.save_interaction(
@@ -707,7 +790,7 @@ class AgentLoop:
         )
 
     async def _chat(self, max_tokens: int | None = None) -> LLMChunk:
-        active_model = self.config.get_active_model()
+        active_model = self._resolve_model_with_fallback()
         provider = self.config.get_provider_for_model(active_model)
 
         available_tools = self.format_handler.get_available_tools(self.tool_manager)
@@ -752,7 +835,7 @@ class AgentLoop:
     async def _chat_streaming(
         self, max_tokens: int | None = None
     ) -> AsyncGenerator[LLMChunk]:
-        active_model = self.config.get_active_model()
+        active_model = self._resolve_model_with_fallback()
         provider = self.config.get_provider_for_model(active_model)
 
         available_tools = self.format_handler.get_available_tools(self.tool_manager)

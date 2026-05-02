@@ -62,6 +62,16 @@ class CommandRegistry:
                 description="Display agent statistics",
                 handler="_show_status",
             ),
+            "limits": Command(
+                aliases=frozenset(["/limits", "/quota"]),
+                description="Display Albert API quotas (rpm/rpd/tpm/tpd)",
+                handler="_show_limits",
+            ),
+            "fallback": Command(
+                aliases=frozenset(["/fallback"]),
+                description="Toggle auto-fallback on repeated 429",
+                handler="_toggle_fallback",
+            ),
             "teleport": Command(
                 aliases=frozenset(["/teleport"]),
                 description="Teleport session to Vibe Nuage",

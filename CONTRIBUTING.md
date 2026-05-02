@@ -45,7 +45,7 @@ This section is for developers who want to set up the repository for local devel
 ### Prerequisites
 
 - Python 3.12 or higher
-- [uv](https://github.com/astral-sh/uv) - Modern Python package manager
+- A working `python3` with `venv` and `pip` (no need for uv)
 
 ### Setup
 
@@ -56,18 +56,22 @@ This section is for developers who want to set up the repository for local devel
    cd albert-code
    ```
 
-2. Install dependencies:
+2. Create a virtual environment and install dependencies:
 
    ```bash
-   uv sync --all-extras
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -e .
+   pip install pre-commit pytest pytest-asyncio pytest-timeout pytest-xdist respx ruff pyright typos vulture
    ```
 
-   This will install both runtime and development dependencies.
+   The first command installs runtime dependencies declared in `pyproject.toml`.
+   The second installs the dev tools used by tests, lint and type checks.
 
 3. (Optional) Install pre-commit hooks:
 
    ```bash
-   uv run pre-commit install
+   pre-commit install
    ```
 
    Pre-commit hooks will automatically run checks before each commit.
@@ -85,7 +89,7 @@ Logs are written to `~/.vibe/logs/vibe.log` by default. Control logging via envi
 Example:
 
 ```bash
-LOG_LEVEL=DEBUG uv run vibe
+LOG_LEVEL=DEBUG vibe
 ```
 
 ### Running Tests
@@ -93,19 +97,19 @@ LOG_LEVEL=DEBUG uv run vibe
 Run all tests:
 
 ```bash
-uv run pytest
+pytest
 ```
 
 Run tests with verbose output:
 
 ```bash
-uv run pytest -v
+pytest -v
 ```
 
 Run a specific test file:
 
 ```bash
-uv run pytest tests/test_agent_tool_call.py
+pytest tests/test_agent_tool_call.py
 ```
 
 ### Linting and Type Checking
@@ -115,25 +119,25 @@ uv run pytest tests/test_agent_tool_call.py
 Check for linting issues (without fixing):
 
 ```bash
-uv run ruff check .
+ruff check .
 ```
 
 Auto-fix linting issues:
 
 ```bash
-uv run ruff check --fix .
+ruff check --fix .
 ```
 
 Format code:
 
 ```bash
-uv run ruff format .
+ruff format .
 ```
 
 Check formatting without modifying files (useful for CI):
 
 ```bash
-uv run ruff format --check .
+ruff format --check .
 ```
 
 #### Pyright (Type Checking)
@@ -141,7 +145,7 @@ uv run ruff format --check .
 Run type checking:
 
 ```bash
-uv run pyright
+pyright
 ```
 
 #### Pre-commit Hooks
@@ -149,7 +153,7 @@ uv run pyright
 Run all pre-commit hooks manually:
 
 ```bash
-uv run pre-commit run --all-files
+pre-commit run --all-files
 ```
 
 The pre-commit hooks include:

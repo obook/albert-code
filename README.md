@@ -15,20 +15,34 @@
 
 ## 2 - Installation
 
+Pré-requis : Python 3.12 ou supérieur.
+
 ```bash
-uv tool install "albert-code @ git+https://github.com/simonaszilinskas/albert-code"
+git clone https://github.com/obook/albert-code.git
+cd albert-code
+./albert-code.sh
 ```
 
-Au premier lancement, albert-code te demandera ta clé API.
+Le lanceur crée automatiquement un environnement virtuel Python (`.venv/`), installe les dépendances et démarre albert-code. Au premier lancement, albert-code te demandera ta clé API.
 
-## 3 -Utilisation
+Sous Windows, utiliser `albert-code.bat` à la place de `albert-code.sh`.
+
+## 3 - Utilisation
 
 ```bash
 cd ton-projet/
-albert-code
+/chemin/vers/albert-code/albert-code.sh
 ```
 
-Tape `/help` pour voir les commandes disponibles.
+Tape `/help` pour voir toutes les commandes disponibles. Quelques commandes utiles spécifiques à Albert :
+
+- `/limits` (alias `/quota`) : affiche les quotas par routeur (rpm, rpd, tpm, tpd) lus depuis `/v1/me/info`.
+- `/fallback` : active ou désactive le basculement automatique de modèle après deux 429 consécutifs (par défaut actif, bascule de `albert-code` vers `albert-large` pendant 60 s).
+- `/status` : statistiques de la session (étapes, tokens, coût).
+
+## Remerciements
+
+Ce fork s'inspire de [AlbertCode](https://github.com/XenocodeRCE/AlbertCode) de **Simon Roux** pour plusieurs idées clés autour de l'API Albert : auto-fallback de modèle sur 429 répétés, jauge RPM, mode plan-first avec checkpoints, snapshots Git automatiques avant édit. Les implémentations dans ce fork sont indépendantes mais doivent beaucoup à ses choix de design.
 
 ## Licence
 

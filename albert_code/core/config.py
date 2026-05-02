@@ -150,6 +150,7 @@ class ProviderConfig(BaseModel):
     reasoning_field_name: str = "reasoning_content"
     tool_choice_override: str = ""
     force_non_streaming: bool = False
+    streaming_xml_tool_calls: bool = False
     project_id: str = ""
     region: str = ""
 
@@ -260,6 +261,9 @@ class ModelConfig(BaseModel):
     input_price: float = 0.0  # Price per million input tokens
     output_price: float = 0.0  # Price per million output tokens
     thinking: Literal["off", "low", "medium", "high"] = "off"
+    # Optional alias of a model to fall back to when this one is repeatedly
+    # rate-limited (HTTP 429). Activation logic lives in the throttler.
+    fallback_model: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -288,7 +292,7 @@ DEFAULT_PROVIDERS = [
         api_key_env_var=DEFAULT_ALBERT_API_ENV_KEY,
         api_style="openai",
         backend=Backend.GENERIC,
-        force_non_streaming=True,
+        streaming_xml_tool_calls=True,
     ),
     ProviderConfig(
         name="llamacpp",
@@ -318,6 +322,7 @@ DEFAULT_MODELS = [
         alias="albert-code",
         input_price=0.0,
         output_price=0.0,
+        fallback_model="albert-large",
     ),
     ModelConfig(
         name="openai/gpt-oss-120b",
@@ -346,6 +351,7 @@ class VibeConfig(BaseSettings):
     auto_compact_threshold: int = 200_000
     context_warnings: bool = False
     auto_approve: bool = False
+    auto_fallback_enabled: bool = True
     enable_telemetry: bool = True
     system_prompt_id: str = "cli"
     include_commit_signature: bool = True
@@ -473,8 +479,14 @@ class VibeConfig(BaseSettings):
         )
 
     def get_active_model(self) -> ModelConfig:
+        # Prefer matching by alias (the documented convention), but fall back
+        # to matching by name so a config setting `active_model = "<full id>"`
+        # still resolves correctly.
         for model in self.models:
             if model.alias == self.active_model:
+                return model
+        for model in self.models:
+            if model.name == self.active_model:
                 return model
         raise ValueError(
             f"Active model '{self.active_model}' not found in configuration."

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install albert-code configured for the Albert API.
+# Install albert-code configured for the Albert API (uses a local Python venv).
 # Usage:
 #   curl -sSL <raw-url>/scripts/install-albert.sh | bash
 #   # or, to pass the key directly:
@@ -7,6 +7,8 @@
 set -euo pipefail
 
 ALBERT_CODE_HOME="${ALBERT_CODE_HOME:-$HOME/.vibe}"
+INSTALL_DIR="${ALBERT_CODE_INSTALL_DIR:-$HOME/.local/share/albert-code}"
+REPO_URL="${ALBERT_CODE_REPO:-https://github.com/obook/albert-code.git}"
 
 # ---------------------------------------------------------------------------
 # Parse arguments
@@ -20,19 +22,31 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---------------------------------------------------------------------------
-# 1. Check / install uv
+# 1. Check Python 3.12+
 # ---------------------------------------------------------------------------
-if ! command -v uv &>/dev/null; then
-  echo ">> Installing uv..."
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  export PATH="$HOME/.local/bin:$PATH"
+if ! command -v python3 &>/dev/null; then
+  echo "Error: python3 not found. Please install Python 3.12 or higher." >&2
+  exit 1
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Install albert-code as a CLI tool
+# 2. Clone or update the repo, create venv, install in editable mode
 # ---------------------------------------------------------------------------
-echo ">> Installing albert-code..."
-uv tool install "albert-code @ git+https://github.com/simonaszilinskas/albert-code"
+if [[ -d "$INSTALL_DIR/.git" ]]; then
+  echo ">> Updating existing albert-code clone in $INSTALL_DIR..."
+  git -C "$INSTALL_DIR" pull --ff-only
+else
+  echo ">> Cloning albert-code into $INSTALL_DIR..."
+  mkdir -p "$(dirname "$INSTALL_DIR")"
+  git clone "$REPO_URL" "$INSTALL_DIR"
+fi
+
+echo ">> Creating Python venv and installing albert-code..."
+python3 -m venv "$INSTALL_DIR/.venv"
+# shellcheck disable=SC1091
+source "$INSTALL_DIR/.venv/bin/activate"
+pip install --upgrade --disable-pip-version-check pip >/dev/null
+pip install --disable-pip-version-check -e "$INSTALL_DIR"
 
 # ---------------------------------------------------------------------------
 # 3. Write Albert config
@@ -94,4 +108,6 @@ echo "ALBERT_API_KEY=$API_KEY" >> "$ENV_FILE"
 chmod 600 "$ENV_FILE"
 
 echo ""
-echo "Done! Run 'vibe' to start coding with the Albert API."
+echo "Done! Run '$INSTALL_DIR/albert-code.sh' to start coding with the Albert API,"
+echo "or add this line to your shell rc to expose 'albert-code' globally:"
+echo "    alias albert-code='$INSTALL_DIR/albert-code.sh'"

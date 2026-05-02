@@ -28,6 +28,12 @@ Temporary Items
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
+
+# uv lock file (project no longer uses uv)
+uv.lock
+
+# Textual snapshot test artifacts
+snapshot_report.html
 *.py[cod]
 *$py.class
 

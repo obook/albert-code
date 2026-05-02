@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Sequence
+import asyncio
+from collections.abc import AsyncGenerator, Iterator, Sequence
+import datetime as dt
+import email.utils
 import json
+import logging
 import os
 import re
 import types
@@ -10,11 +14,16 @@ from uuid import uuid4
 
 import httpx
 
+logger = logging.getLogger(__name__)
+
+HTTP_TOO_MANY_REQUESTS = 429
+
 from albert_code.core.llm.backend.anthropic import AnthropicAdapter
 from albert_code.core.llm.backend.base import APIAdapter, PreparedRequest
 from albert_code.core.llm.backend.vertex import VertexAnthropicAdapter
 from albert_code.core.llm.exceptions import BackendErrorBuilder
 from albert_code.core.llm.message_utils import merge_consecutive_user_messages
+from albert_code.core.llm.throttling import get_throttler
 from albert_code.core.types import (
     AvailableTool,
     FunctionCall,
@@ -158,15 +167,16 @@ class OpenAIAdapter(APIAdapter):
     )
 
     def _extract_xml_tool_calls(
-        self, content: str
+        self, content: str, *, start_index: int = 0
     ) -> tuple[str, list[ToolCall]]:
         """Extract Qwen-style XML tool calls from content.
 
         Returns the cleaned content and a list of ToolCall objects.
+        Tool call indexes start at `start_index` (default 0).
         """
         tool_calls: list[ToolCall] = []
 
-        for idx, match in enumerate(self._TOOL_CALL_RE.finditer(content)):
+        for offset, match in enumerate(self._TOOL_CALL_RE.finditer(content)):
             func_name = match.group(1)
             body = match.group(2)
             params: dict[str, Any] = {}
@@ -179,7 +189,7 @@ class OpenAIAdapter(APIAdapter):
             tool_calls.append(
                 ToolCall(
                     id=f"tc-{uuid4().hex[:12]}",
-                    index=idx,
+                    index=start_index + offset,
                     function=FunctionCall(
                         name=func_name,
                         arguments=json.dumps(params, ensure_ascii=False),
@@ -201,21 +211,37 @@ class OpenAIAdapter(APIAdapter):
         if message is None:
             message = LLMMessage(role=Role.assistant, content="")
 
-        # Extract XML tool calls from content for providers that emit them
-        # (e.g. Qwen models on vLLM with tool_choice=auto)
-        content_str = str(message.content) if message.content else ""
-        if (
-            content_str
-            and not message.tool_calls
-            and ("<tool_call>" in content_str or "<function=" in content_str)
-        ):
-            cleaned, xml_tool_calls = self._extract_xml_tool_calls(
+        # Streaming chunks contain `delta`, not `message`. We skip the bulk XML
+        # extraction here because each delta only carries a fragment; a
+        # dedicated incremental parser handles streaming reliably (see
+        # XmlToolCallStreamParser used by complete_streaming).
+        choices = data.get("choices") or []
+        is_streaming_chunk = bool(choices) and "delta" in choices[0]
+
+        if not is_streaming_chunk:
+            # Extract XML tool calls from content for providers that emit them
+            # (e.g. Qwen models on vLLM with tool_choice=auto, non-streaming).
+            content_str = str(message.content) if message.content else ""
+            if (
                 content_str
-            )
-            update: dict[str, Any] = {"content": cleaned or None}
-            if xml_tool_calls:
-                update["tool_calls"] = xml_tool_calls
-            message = message.model_copy(update=update)
+                and not message.tool_calls
+                and ("<tool_call>" in content_str or "<function=" in content_str)
+            ):
+                cleaned, xml_tool_calls = self._extract_xml_tool_calls(
+                    content_str
+                )
+                update: dict[str, Any] = {"content": cleaned or None}
+                if xml_tool_calls:
+                    update["tool_calls"] = xml_tool_calls
+                message = message.model_copy(update=update)
+
+        # Non-streaming responses do not include `index` on tool_calls (it is a
+        # streaming-only field per OpenAI spec). Albert/vLLM may emit native
+        # tool_calls without index; downstream accumulation requires one.
+        if message.tool_calls:
+            for idx, tc in enumerate(message.tool_calls):
+                if tc.index is None:
+                    tc.index = idx
 
         usage_data = data.get("usage") or {}
         usage = LLMUsage(
@@ -231,6 +257,167 @@ ADAPTERS: dict[str, APIAdapter] = {
     "anthropic": AnthropicAdapter(),
     "vertex-anthropic": VertexAnthropicAdapter(),
 }
+
+
+_TOOL_CALL_OPEN = "<tool_call>"
+_TOOL_CALL_CLOSE = "</tool_call>"
+
+
+class XmlToolCallStreamParser:
+    """Incremental parser for Qwen-style XML tool calls in a streamed content.
+
+    Albert/vLLM emits Qwen tool calls as XML inside `delta.content`, split
+    across many small SSE chunks (e.g. `<tool_call>`, `\\n`, `<`, `function`,
+    `=read`, `_file`, `>`, ...). This parser accumulates a buffer, yields
+    only the text that is safe to display (i.e. text not inside a tool call,
+    and not the trailing fragment of a partial opening tag), and emits
+    `ToolCall` objects whenever a `</tool_call>` block is fully received.
+    """
+
+    def __init__(self, adapter: OpenAIAdapter) -> None:
+        self._adapter = adapter
+        self._buffer = ""
+        self._next_tool_index = 0
+
+    def feed(self, delta: str) -> tuple[str, list[ToolCall]]:
+        """Consume a delta. Returns (safe_content_to_emit, completed_tool_calls)."""
+        if not delta:
+            return "", []
+        self._buffer += delta
+        return self._drain()
+
+    def flush(self) -> tuple[str, list[ToolCall]]:
+        """End of stream: emit anything still buffered, including partial tool calls."""
+        leftover = self._buffer
+        self._buffer = ""
+        if not leftover:
+            return "", []
+        if _TOOL_CALL_OPEN in leftover or "<function=" in leftover:
+            cleaned, tool_calls = self._adapter._extract_xml_tool_calls(
+                leftover, start_index=self._next_tool_index
+            )
+            self._next_tool_index += len(tool_calls)
+            return cleaned, tool_calls
+        return leftover, []
+
+    def _drain(self) -> tuple[str, list[ToolCall]]:
+        safe_parts: list[str] = []
+        new_calls: list[ToolCall] = []
+        while True:
+            open_idx = self._buffer.find(_TOOL_CALL_OPEN)
+            close_idx = self._buffer.find(_TOOL_CALL_CLOSE)
+
+            both_present = open_idx >= 0 and close_idx > open_idx
+            if both_present:
+                safe_parts.append(self._buffer[:open_idx])
+                end = close_idx + len(_TOOL_CALL_CLOSE)
+                tool_block = self._buffer[open_idx:end]
+                _, parsed = self._adapter._extract_xml_tool_calls(
+                    tool_block, start_index=self._next_tool_index
+                )
+                self._next_tool_index += len(parsed)
+                new_calls.extend(parsed)
+                self._buffer = self._buffer[end:]
+                continue
+
+            if open_idx >= 0:
+                # Open tag seen, close tag not yet: emit prefix, keep the rest.
+                safe_parts.append(self._buffer[:open_idx])
+                self._buffer = self._buffer[open_idx:]
+                break
+
+            # No open tag: emit everything except a possible partial-opening suffix.
+            partial = _partial_tag_suffix_length(self._buffer, _TOOL_CALL_OPEN)
+            if partial == 0:
+                safe_parts.append(self._buffer)
+                self._buffer = ""
+            else:
+                safe_parts.append(self._buffer[:-partial])
+                self._buffer = self._buffer[-partial:]
+            break
+
+        return "".join(safe_parts), new_calls
+
+
+def _partial_tag_suffix_length(text: str, tag: str) -> int:
+    """Return the longest suffix of `text` that is also a strict prefix of `tag`."""
+    max_check = min(len(text), len(tag) - 1)
+    for size in range(max_check, 0, -1):
+        if tag.startswith(text[-size:]):
+            return size
+    return 0
+
+
+_BODY_RPM_RE = re.compile(r"(\d+)\s*requests?\s*per\s*minute", re.IGNORECASE)
+
+
+def _parse_retry_after_from_body(body: str) -> float | None:
+    """Best-effort parse of a 429 body for `N requests per minute`.
+
+    Inspired by Simon Roux's AlbertCode (api.py): when Albert refuses with
+    a textual error like `"Limit exceeded: 50 requests per minute"`,
+    use that to compute a reasonable backoff (60/N + 0.1).
+    """
+    if not body:
+        return None
+    match = _BODY_RPM_RE.search(body[:500])
+    if match is None:
+        return None
+    rpm = max(1, int(match.group(1)))
+    return (60.0 / rpm) + 0.1
+
+
+def _parse_retry_after(value: str) -> float | None:
+    """Parse a Retry-After header. Returns seconds, or None if unparseable.
+
+    Per RFC 7231, the value may be either a non-negative integer (seconds)
+    or an HTTP-date.
+    """
+    if not value:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return float(value)
+    try:
+        target = email.utils.parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if target is None:
+        return None
+    if target.tzinfo is None:
+        target = target.replace(tzinfo=dt.UTC)
+    delta = (target - dt.datetime.now(dt.UTC)).total_seconds()
+    return max(0.0, delta)
+
+
+def _emit_through_xml_parser(
+    chunk: LLMChunk, parser: XmlToolCallStreamParser
+) -> Iterator[LLMChunk]:
+    """Pipe a streamed chunk through the incremental XML parser.
+
+    Yields cleaned content chunks and synthesized tool-call chunks, preserving
+    the upstream usage so token counts still reach the agent loop.
+    """
+    delta_content = chunk.message.content or ""
+    safe_content, new_tool_calls = parser.feed(str(delta_content))
+
+    has_safe_content = bool(safe_content)
+    has_tool_calls = bool(new_tool_calls)
+    has_usage = chunk.usage is not None
+
+    if not (has_safe_content or has_tool_calls or has_usage):
+        return
+
+    yield LLMChunk(
+        message=LLMMessage(
+            role=chunk.message.role,
+            content=safe_content if has_safe_content else None,
+            tool_calls=new_tool_calls if has_tool_calls else None,
+            reasoning_content=chunk.message.reasoning_content,
+            reasoning_signature=chunk.message.reasoning_signature,
+        ),
+        usage=chunk.usage,
+    )
 
 
 class GenericBackend:
@@ -319,9 +506,23 @@ class GenericBackend:
         base = req.base_url or self._provider.api_base
         url = f"{base}{req.endpoint}"
 
+        throttler = get_throttler(self._provider)
+        await throttler.acquire()
+
         try:
-            res_data, _ = await self._make_request(url, req.body, headers)
-            return adapter.parse_response(res_data, self._provider)
+            res_data, _ = await self._make_request(
+                url, req.body, headers, model_alias=model.alias
+            )
+            chunk = adapter.parse_response(res_data, self._provider)
+            if chunk.usage is not None:
+                throttler.record_request(
+                    prompt_tokens=chunk.usage.prompt_tokens,
+                    completion_tokens=chunk.usage.completion_tokens,
+                )
+            else:
+                throttler.record_request()
+            throttler.record_success(model_alias=model.alias)
+            return chunk
 
         except httpx.HTTPStatusError as e:
             raise BackendErrorBuilder.build_http_error(
@@ -359,9 +560,8 @@ class GenericBackend:
         extra_headers: dict[str, str] | None = None,
         metadata: dict[str, str] | None = None,
     ) -> AsyncGenerator[LLMChunk, None]:
-        # Some providers (e.g. Albert/vLLM) strip tool call XML from streamed
-        # content without producing proper tool_calls. Fall back to a single
-        # non-streaming request so the XML can be parsed from the full content.
+        # `force_non_streaming` is a fallback for providers that simply do not
+        # support streaming. It downgrades to a single non-streaming call.
         if self._provider.force_non_streaming:
             result = await self.complete(
                 model=model,
@@ -385,6 +585,14 @@ class GenericBackend:
         api_style = getattr(self._provider, "api_style", "openai")
         adapter = ADAPTERS[api_style]
 
+        # Albert/vLLM emits Qwen tool calls as raw XML inside `delta.content`,
+        # split across many tiny SSE chunks. We feed those deltas to an
+        # incremental parser that reconstructs the tool calls and emits clean
+        # text chunks in between. Activated per-provider.
+        xml_parser: XmlToolCallStreamParser | None = None
+        if self._provider.streaming_xml_tool_calls and isinstance(adapter, OpenAIAdapter):
+            xml_parser = XmlToolCallStreamParser(adapter)
+
         req = adapter.prepare_request(
             model_name=model.name,
             messages=messages,
@@ -405,9 +613,41 @@ class GenericBackend:
         base = req.base_url or self._provider.api_base
         url = f"{base}{req.endpoint}"
 
+        throttler = get_throttler(self._provider)
+        await throttler.acquire()
+
+        last_usage = LLMUsage()
+
         try:
-            async for res_data in self._make_streaming_request(url, req.body, headers):
-                yield adapter.parse_response(res_data, self._provider)
+            async for res_data in self._make_streaming_request(
+                url, req.body, headers, model_alias=model.alias
+            ):
+                chunk = adapter.parse_response(res_data, self._provider)
+                if chunk.usage is not None:
+                    last_usage = chunk.usage
+                if xml_parser is None:
+                    yield chunk
+                    continue
+                for transformed in _emit_through_xml_parser(chunk, xml_parser):
+                    yield transformed
+
+            if xml_parser is not None:
+                leftover_content, leftover_calls = xml_parser.flush()
+                if leftover_content or leftover_calls:
+                    yield LLMChunk(
+                        message=LLMMessage(
+                            role=Role.assistant,
+                            content=leftover_content or None,
+                            tool_calls=leftover_calls or None,
+                        ),
+                        usage=None,
+                    )
+
+            throttler.record_request(
+                prompt_tokens=last_usage.prompt_tokens,
+                completion_tokens=last_usage.completion_tokens,
+            )
+            throttler.record_success(model_alias=model.alias)
 
         except httpx.HTTPStatusError as e:
             raise BackendErrorBuilder.build_http_error(
@@ -439,19 +679,53 @@ class GenericBackend:
 
     @async_retry(tries=3)
     async def _make_request(
-        self, url: str, data: bytes, headers: dict[str, str]
+        self,
+        url: str,
+        data: bytes,
+        headers: dict[str, str],
+        model_alias: str | None = None,
     ) -> HTTPResponse:
         client = self._get_client()
         response = await client.post(url, content=data, headers=headers)
+        await self._handle_429(response, model_alias=model_alias)
         response.raise_for_status()
 
         response_headers = dict(response.headers.items())
         response_body = response.json()
         return self.HTTPResponse(response_body, response_headers)
 
+    async def _handle_429(
+        self, response: httpx.Response, *, model_alias: str | None = None
+    ) -> None:
+        """If the upstream returned 429, log it, sleep Retry-After, then let
+        async_retry retry. Also records the event on the throttler so it can
+        adapt future calls.
+        """
+        if response.status_code != HTTP_TOO_MANY_REQUESTS:
+            return
+        get_throttler(self._provider).record_rate_limit(model_alias=model_alias)
+        retry_after = _parse_retry_after(response.headers.get("Retry-After", ""))
+        if retry_after is None:
+            # Some providers put the rate-limit hint in the body, e.g.
+            # `"Limit: 50 requests per minute"`. Best-effort regex fallback.
+            try:
+                body_text = response.text
+            except RuntimeError:
+                body_text = ""
+            retry_after = _parse_retry_after_from_body(body_text)
+        if retry_after is not None and retry_after > 0:
+            logger.info(
+                "Provider returned 429; sleeping %.2fs (Retry-After)", retry_after
+            )
+            await asyncio.sleep(retry_after)
+
     @async_generator_retry(tries=3)
     async def _make_streaming_request(
-        self, url: str, data: bytes, headers: dict[str, str]
+        self,
+        url: str,
+        data: bytes,
+        headers: dict[str, str],
+        model_alias: str | None = None,
     ) -> AsyncGenerator[dict[str, Any]]:
         client = self._get_client()
         async with client.stream(
@@ -459,6 +733,7 @@ class GenericBackend:
         ) as response:
             if not response.is_success:
                 await response.aread()
+            await self._handle_429(response, model_alias=model_alias)
             response.raise_for_status()
             async for line in response.aiter_lines():
                 if line.strip() == "":

@@ -122,17 +122,19 @@ guidelines:
         `transport: Literal[...]` once in each final class.
       - Use `match` on the discriminator to narrow types at call sites.
 
-  - title: "Use uv for All Commands"
+  - title: "Use a Python venv for All Commands"
     description: >
-      We use uv to manage our python environment. You should nevery try to run a bare python commands.
-      Always run commands using `uv` instead of invoking `python` or `pip` directly.
-      For example, use `uv add package` and `uv run script.py` rather than `pip install package` or `python script.py`.
-      This practice helps avoid environment drift and leverages modern Python packaging best practices.
-      Useful uv commands are:
-      - uv add/remove <package> to manage dependencies
-      - uv sync to install dependencies declared in pyproject.toml and uv.lock
-      - uv run script.py to run a script within the uv environment
-      - uv run pytest (or any other python tool) to run the tool within the uv environment
+      We use a standard Python venv (created with `python3 -m venv .venv`) to manage the
+      development environment. Activate it with `source .venv/bin/activate` (or run binaries
+      directly via `.venv/bin/<tool>`) and use `pip install -e .` to install the package in
+      editable mode.
+      Useful commands:
+      - python3 -m venv .venv to create the venv
+      - source .venv/bin/activate to activate it
+      - pip install -e . to install albert-code and its runtime deps
+      - pip install pytest pyright ruff respx pytest-asyncio pytest-xdist pytest-timeout to install dev tools
+      - pytest, pyright, ruff (run directly from the venv) for tests, type checks, lint
+      - The launcher scripts albert-code.sh / albert-code.bat at the repo root automate venv creation and editable install on first run.
 
   - title: "Imports in Cursor (no Pylance)"
     description: >

@@ -225,6 +225,7 @@ class VibeApp(App):  # noqa: PLR0904
     ) -> None:
         super().__init__(**kwargs)
         self.agent_loop = agent_loop
+        self.agent_loop.set_fallback_observer(self._on_fallback_event)
         self._terminal_notifier = terminal_notifier or TextualNotificationAdapter(
             self,
             get_enabled=lambda: self.config.enable_notifications,
@@ -299,6 +300,7 @@ class VibeApp(App):  # noqa: PLR0904
         with Horizontal(id="bottom-bar"):
             yield PathDisplay(self.config.displayed_workdir or Path.cwd())
             yield NoMarkupStatic(id="spacer")
+            yield NoMarkupStatic(self._format_model_label(), id="bottom-model")
             yield ContextProgress()
 
     async def on_mount(self) -> None:
@@ -728,10 +730,10 @@ class VibeApp(App):  # noqa: PLR0904
 
             message = str(e)
             if isinstance(e, RateLimitError):
-                if self.plan_type == PlanType.FREE:
-                    message = "Rate limits exceeded. Please wait a moment before trying again, or upgrade to Pro for higher rate limits and uninterrupted access."
-                else:
-                    message = "Rate limits exceeded. Please wait a moment before trying again."
+                message = (
+                    "Rate limits exceeded. Please wait a moment before trying again. "
+                    "Use /limits to inspect your Albert quotas."
+                )
 
             await self._mount_and_scroll(
                 ErrorMessage(message, collapsed=self._tools_collapsed)
@@ -885,6 +887,123 @@ class VibeApp(App):  # noqa: PLR0904
 - **Cost**: ${stats.session_cost:.4f}
 """
         await self._mount_and_scroll(UserCommandMessage(status_text))
+
+    def _on_fallback_event(
+        self, kind: str, message: str, remaining_seconds: float
+    ) -> None:
+        """Display a Textual toast when the auto-fallback toggles.
+
+        `kind` is "activated" or "restored". `remaining_seconds` is the
+        original fallback window length on activation, 0 on restore.
+        """
+        del remaining_seconds  # informational, conveyed via `message`
+        severity = "warning" if kind == "activated" else "information"
+        title = "Auto-fallback activated" if kind == "activated" else "Auto-fallback ended"
+        self.notify(message, title=title, severity=severity, timeout=8)
+
+    def _format_model_label(self) -> str:
+        """Format the active model for the bottom bar as `⚙ alias (short-name)`.
+
+        - `alias` is the user-friendly identifier from ModelConfig.
+        - `short-name` strips the org prefix from the underlying model id
+          (e.g. `Qwen/Qwen3-Coder-30B-A3B-Instruct` -> `Qwen3-Coder-30B-A3B-Instruct`).
+        - Falls back to a single value if alias and short-name coincide,
+          and to the raw `active_model` string if no model matches the config.
+        """
+        try:
+            model = self.config.get_active_model()
+        except ValueError:
+            return f"⚙ {self.config.active_model}"
+
+        alias = model.alias or ""
+        short_name = model.name.split("/")[-1] if "/" in model.name else model.name
+
+        if not alias or alias == short_name:
+            return f"⚙ {short_name}"
+        return f"⚙ {alias} ({short_name})"
+
+    async def _toggle_fallback(self) -> None:
+        """Toggle the auto-fallback-on-429 strategy ON/OFF."""
+        new_value = not self.config.auto_fallback_enabled
+        VibeConfig.save_updates({"auto_fallback_enabled": new_value})
+        await self._reload_config()
+
+        active_model = self.config.get_active_model()
+        target = active_model.fallback_model or "(no fallback configured)"
+
+        if new_value:
+            body = (
+                f"## Auto-fallback: ON\n\n"
+                f"After 2 consecutive 429 on `{active_model.alias}`, "
+                f"requests will be redirected to `{target}` for 60 seconds, "
+                f"then automatically restored."
+            )
+        else:
+            body = (
+                "## Auto-fallback: OFF\n\n"
+                "Rate-limits will be handled only by `Retry-After` sleeps; "
+                "no model substitution will occur."
+            )
+        await self._mount_and_scroll(UserCommandMessage(body))
+
+    async def _show_limits(self) -> None:
+        """Display Albert API quotas (rpm/rpd/tpm/tpd) for the active provider."""
+        from albert_code.core.llm.quota import (
+            fetch_albert_quotas_detailed,
+            group_limits_by_router,
+            is_albert_provider,
+        )
+
+        active_model = self.config.get_active_model()
+        provider = self.config.get_provider_for_model(active_model)
+
+        if not is_albert_provider(provider):
+            await self._mount_and_scroll(
+                UserCommandMessage(
+                    f"## Quotas\n\nThe active provider `{provider.name}` is not Albert. "
+                    "Quotas are only available for the Albert provider."
+                )
+            )
+            return
+
+        info, error = await fetch_albert_quotas_detailed(provider)
+        if info is None:
+            await self._mount_and_scroll(
+                UserCommandMessage(
+                    f"## Quotas\n\nCould not fetch Albert quotas.\n\n"
+                    f"**Reason**: {error}"
+                )
+            )
+            return
+
+        lines: list[str] = ["## Albert Quotas", ""]
+        if info.name or info.email or info.id:
+            lines.append("### Account")
+            if info.name:
+                lines.append(f"- **Name**: {info.name}")
+            if info.email:
+                lines.append(f"- **Email**: {info.email}")
+            if info.id:
+                lines.append(f"- **ID**: `{info.id}`")
+            lines.append("")
+
+        if not info.limits:
+            lines.append("_No quota information returned._")
+        else:
+            lines.append("### Limits per router")
+            lines.append("")
+            lines.append("| Router | rpm | rpd | tpm | tpd |")
+            lines.append("|---:|---:|---:|---:|---:|")
+            grouped = group_limits_by_router(info.limits)
+            for router_id in sorted(grouped):
+                vals = grouped[router_id]
+                rpm = _format_quota_value(vals, "rpm")
+                rpd = _format_quota_value(vals, "rpd")
+                tpm = _format_quota_value(vals, "tpm")
+                tpd = _format_quota_value(vals, "tpd")
+                lines.append(f"| {router_id} | {rpm} | {rpd} | {tpm} | {tpd} |")
+
+        await self._mount_and_scroll(UserCommandMessage("\n".join(lines)))
 
     async def _show_config(self) -> None:
         """Switch to the configuration app in the bottom panel."""
@@ -1628,6 +1747,13 @@ class VibeApp(App):  # noqa: PLR0904
         # Textual doesn't repaint after resuming from Ctrl+Z (SIGTSTP);
         # force a full layout refresh so the UI isn't garbled.
         self.refresh(layout=True)
+
+
+def _format_quota_value(vals: dict[str, int | None], key: str) -> str:
+    if key not in vals:
+        return "?"
+    value = vals[key]
+    return "∞" if value is None else f"{value:,}"
 
 
 def _print_session_resume_message(session_id: str | None) -> None:

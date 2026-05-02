@@ -20,26 +20,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
-      - name: Install uv with caching
-        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7
-        with:
-          version: "latest"
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
 
-      - name: Sync dependencies
-        run: uv sync --all-extras
-
-      - name: Install pip (required by pre-commit)
-        run: uv pip install pip
+      - name: Create venv and install package + dev tools
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -e .
+          pip install pre-commit pytest pytest-asyncio pytest-textual-snapshot pytest-timeout pytest-xdist pyright respx ruff typos vulture debugpy
 
       - name: Add virtual environment to PATH
-        run: echo "$(pwd)/.venv/bin" >> $GITHUB_PATH
+        run: echo "$(pwd)/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Cache pre-commit
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -48,7 +44,7 @@ jobs:
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Run pre-commit
-        run: uv run pre-commit run --all-files --show-diff-on-failure
+        run: pre-commit run --all-files --show-diff-on-failure
 
   tests:
     name: Tests
@@ -60,31 +56,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
-      - name: Install uv with caching
-        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7
-        with:
-          version: "latest"
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
 
-      - name: Sync dependencies
-        run: uv sync --all-extras
+      - name: Create venv and install package + test tools
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -e .
+          pip install pytest pytest-asyncio pytest-textual-snapshot pytest-timeout pytest-xdist respx
+
+      - name: Add virtual environment to PATH
+        run: echo "$(pwd)/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Verify CLI can start
         run: |
-          uv run vibe --help
-          uv run vibe-acp --help
+          albert-code --help
+          albert-acp --help
 
       - name: Install ripgrep
         run: sudo apt-get update && sudo apt-get install -y ripgrep
 
       - name: Run tests
-        run: uv run pytest --ignore tests/snapshots
+        run: pytest --ignore tests/snapshots
 
   snapshot-tests:
     name: Snapshot Tests
@@ -96,24 +94,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
-      - name: Install uv with caching
-        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7
-        with:
-          version: "latest"
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
 
-      - name: Sync dependencies
-        run: uv sync --all-extras
+      - name: Create venv and install package + test tools
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -e .
+          pip install pytest pytest-asyncio pytest-textual-snapshot pytest-timeout pytest-xdist respx
+
+      - name: Add virtual environment to PATH
+        run: echo "$(pwd)/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Run snapshot tests
         id: snapshot-tests
-        run: uv run pytest tests/snapshots
+        run: pytest tests/snapshots
         continue-on-error: true
 
       - name: Upload snapshot report

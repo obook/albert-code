@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # Albert Code Installation Script
-# This script installs uv if not present and then installs albert-code using uv
+# Clones the repo into a local install directory, creates a Python venv,
+# installs albert-code in editable mode and exposes the launcher.
 
 set -euo pipefail
 
@@ -11,6 +12,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+INSTALL_DIR="${ALBERT_CODE_INSTALL_DIR:-$HOME/.local/share/albert-code}"
+REPO_URL="${ALBERT_CODE_REPO:-https://github.com/obook/albert-code.git}"
 
 function error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
@@ -29,14 +33,13 @@ function warning() {
 }
 
 function check_platform() {
-    local platform=$(uname -s)
+    local platform
+    platform=$(uname -s)
 
     if [[ "$platform" == "Linux" ]]; then
         info "Detected Linux platform"
-        PLATFORM="linux"
     elif [[ "$platform" == "Darwin" ]]; then
         info "Detected macOS platform"
-        PLATFORM="macos"
     else
         error "Unsupported platform: $platform"
         error "This installation script currently only supports Linux and macOS"
@@ -44,61 +47,35 @@ function check_platform() {
     fi
 }
 
-function check_uv_installed() {
-    if command -v uv &> /dev/null; then
-        info "uv is already installed: $(uv --version)"
-        UV_INSTALLED=true
-    else
-        info "uv is not installed"
-        UV_INSTALLED=false
-    fi
-}
-
-function install_uv() {
-    info "Installing uv using the official Astral installer..."
-
-    if ! command -v curl &> /dev/null; then
-        error "curl is required to install uv. Please install curl first."
+function check_python() {
+    if ! command -v python3 &> /dev/null; then
+        error "python3 not found. Please install Python 3.12 or higher."
         exit 1
     fi
+    local version
+    version=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
+    info "Detected Python $version"
+}
 
-    if curl -LsSf https://astral.sh/uv/install.sh | sh; then
-        success "uv installed successfully"
-
-        export PATH="$HOME/.local/bin:$PATH"
-
-        if ! command -v uv &> /dev/null; then
-            warning "uv was installed but not found in PATH for this session"
-            warning "You may need to restart your terminal or run:"
-            warning "  export PATH=\"\$HOME/.cargo/bin:\$HOME/.local/bin:\$PATH\""
-        fi
+function clone_or_update_repo() {
+    if [[ -d "$INSTALL_DIR/.git" ]]; then
+        info "Updating existing albert-code clone in $INSTALL_DIR..."
+        git -C "$INSTALL_DIR" pull --ff-only
     else
-        error "Failed to install uv"
-        exit 1
+        info "Cloning albert-code into $INSTALL_DIR..."
+        mkdir -p "$(dirname "$INSTALL_DIR")"
+        git clone "$REPO_URL" "$INSTALL_DIR"
     fi
 }
 
-function check_vibe_installed() {
-    if command -v vibe &> /dev/null; then
-        info "vibe is already installed"
-        VIBE_INSTALLED=true
-    else
-        VIBE_INSTALLED=false
-    fi
-}
-
-function install_vibe() {
-    info "Installing albert-code from GitHub repository using uv..."
-    uv tool install albert-code
-
-    success "Albert Code installed successfully! (commands: vibe, vibe-acp)"
-}
-
-function update_vibe() {
-    info "Updating albert-code from GitHub repository using uv..."
-    uv tool upgrade albert-code
-
-    success "Albert Code updated successfully!"
+function install_in_venv() {
+    info "Creating Python venv and installing albert-code (editable mode)..."
+    python3 -m venv "$INSTALL_DIR/.venv"
+    # shellcheck disable=SC1091
+    source "$INSTALL_DIR/.venv/bin/activate"
+    pip install --upgrade --disable-pip-version-check pip > /dev/null
+    pip install --disable-pip-version-check -e "$INSTALL_DIR"
+    success "albert-code installed in editable mode."
 }
 
 function main() {
@@ -117,32 +94,21 @@ function main() {
     echo
 
     check_platform
+    check_python
+    clone_or_update_repo
+    install_in_venv
 
-    check_uv_installed
-
-    if [[ "$UV_INSTALLED" == "false" ]]; then
-        install_uv
-    fi
-
-    check_vibe_installed
-
-    if [[ "$VIBE_INSTALLED" == "false" ]]; then
-        install_vibe
-    else
-        update_vibe
-    fi
-
-    if command -v vibe &> /dev/null; then
+    if [[ -x "$INSTALL_DIR/.venv/bin/albert-code" ]]; then
         success "Installation completed successfully!"
         echo
-        echo "You can now run vibe with:"
-        echo "  vibe"
+        echo "Launch albert-code with:"
+        echo "  $INSTALL_DIR/albert-code.sh"
         echo
-        echo "Or for ACP mode:"
-        echo "  vibe-acp"
+        echo "Or add an alias to your shell rc:"
+        echo "  alias albert-code='$INSTALL_DIR/albert-code.sh'"
     else
-        error "Installation completed but 'vibe' command not found"
-        error "Please check your installation and PATH settings"
+        error "Installation completed but 'albert-code' entry point not found in venv"
+        error "Check the install logs above."
         exit 1
     fi
 }

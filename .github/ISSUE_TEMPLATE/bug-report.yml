@@ -45,8 +45,8 @@ body:
     attributes:
       label: Versions / environment
       description: >
-        Include Albert Code version, uv or pip version and OS.
-      placeholder: "albert-code 1.2.0, uv 0.9.0 on macOS 15.7"
+        Include Albert Code version, Python version, pip version and OS.
+      placeholder: "albert-code 2.3.0, Python 3.12.3, pip 25.0 on Ubuntu 24.04"
     validations:
       required: true
 

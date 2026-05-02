@@ -48,7 +48,7 @@ dependencies = [
     "pyyaml>=6.0.0",
     "requests>=2.20.0",
     "rich>=14.0.0",
-    "textual>=7.4.0",
+    "textual>=7.4.0,<8.1",
     "textual-speedups>=0.2.1",
     "tomli-w>=1.2.0",
     "tree-sitter>=0.25.2",
@@ -77,11 +77,6 @@ include = ["albert_code/"]
 [project.scripts]
 albert-code = "albert_code.cli.entrypoint:main"
 albert-acp = "albert_code.acp.entrypoint:main"
-
-
-[tool.uv]
-package = true
-required-version = ">=0.8.0"
 
 
 [dependency-groups]

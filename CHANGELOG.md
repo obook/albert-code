@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Albert API quota fetching via `GET /v1/me/info` (module `albert_code/core/llm/quota.py`).
+- Slash commands `/limits` (and alias `/quota`) showing per-router rpm/rpd/tpm/tpd as a Markdown table.
+- Adaptive client-side throttler (`albert_code/core/llm/throttling.py`): rolling 60s windows for requests and tokens, sleeps before hitting the most permissive `rpm`/`tpm` limit.
+- 429 handling: reads `Retry-After` (header per RFC 7231 plus best-effort regex on bodies that mention `"N requests per minute"`).
+- Auto-fallback on repeated 429: after 2 consecutive 429 on a model, the agent switches to its `ModelConfig.fallback_model` for 60 seconds, then restores. Default Albert mapping `albert-code` -> `albert-large`.
+- Slash command `/fallback` to toggle the auto-fallback strategy ON/OFF (`auto_fallback_enabled` config key).
+- UI toasts on auto-fallback transitions (activated / restored).
+- Incremental XML tool-call parser for streamed Qwen responses (`XmlToolCallStreamParser`); restores Albert streaming previously gated behind `force_non_streaming`.
+- Provider field `streaming_xml_tool_calls` to opt into the XML stream parser.
+- ASCII tricolor logo `AlbertLogo` (replaces the small French-flag widget).
+- Footer model indicator showing `⚙ alias (short-name)` for the active model.
+- `albert-code.sh` and `albert-code.bat` launchers that bootstrap a Python venv and install in editable mode (with a SHA-256 marker on `pyproject.toml` to refresh dependencies on changes).
+
+### Changed
+
+- Build/install/CI no longer use `uv`. Project is now installed via standard `python -m venv` + `pip install -e .`. Workflows, `action.yml`, and install scripts have been ported.
+- `textual` pinned to `>=7.4.0,<8.1` to keep the `textual-ansi` theme available (it was renamed to `ansi-dark` upstream in 8.1).
+- `OpenAIAdapter.parse_response` no longer attempts XML extraction on streaming chunks; the incremental parser handles them.
+- Native non-streaming `tool_calls` returned without `index` (Albert/vLLM) are now post-processed to receive a sequential index, fixing `Tool call chunk missing index` during accumulation.
+- Rate-limit error message in the UI no longer references the Mistral "Pro" plan; points to `/limits` instead.
+
+### Fixed
+
+- `/v1/me/info` parsing: `id` may be returned as int by Albert; coerced to string via a Pydantic `field_validator`. `extra="ignore"` lets the model accept any additional fields without breaking.
+- `get_active_model()` now resolves by alias and falls back to lookup by `name`, so configs that store the full model id in `active_model` resolve correctly.
+
 ## [2.3.0] - 2026-02-27
 
 ### Added

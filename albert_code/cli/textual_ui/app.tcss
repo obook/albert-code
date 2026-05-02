@@ -69,6 +69,14 @@ TextArea > .text-area--cursor {
     background: transparent;
 }
 
+#bottom-model {
+    width: auto;
+    height: auto;
+    background: transparent;
+    color: ansi_cyan;
+    margin-right: 2;
+}
+
 #messages {
     layout: stream;
     width: 100%;
@@ -968,9 +976,17 @@ ContextProgress {
     width: auto;
 }
 
-.petit-chat {
+.albert-logo {
     color: ansi_default;
-    width: 7;
+    width: auto;
+    height: auto;
+    margin-right: 2;
+}
+
+.albert-logo-text {
+    color: ansi_default;
+    width: auto;
+    height: auto;
 }
 
 .whats-new-message {

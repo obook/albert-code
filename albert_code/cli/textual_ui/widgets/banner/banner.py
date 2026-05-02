@@ -9,7 +9,7 @@ from textual.reactive import reactive
 from textual.widgets import Static
 
 from albert_code import __version__
-from albert_code.cli.textual_ui.widgets.banner.petit_chat import PetitChat
+from albert_code.cli.textual_ui.widgets.banner.albert_logo import AlbertLogo
 from albert_code.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
 from albert_code.core.config import VibeConfig
 from albert_code.core.skills.manager import SkillManager
@@ -41,7 +41,7 @@ class Banner(Static):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="banner-container"):
-            yield PetitChat(animate=self._animated)
+            yield AlbertLogo()
 
             with Vertical(id="banner-info"):
                 with Horizontal(classes="banner-line"):
@@ -66,8 +66,8 @@ class Banner(Static):
         )
 
     def freeze_animation(self) -> None:
-        if self._animated:
-            self.query_one(PetitChat).freeze_animation()
+        # Logo is static; nothing to freeze. Kept for API compatibility.
+        return
 
     def set_state(self, config: VibeConfig, skill_manager: SkillManager) -> None:
         self.state = BannerState(
