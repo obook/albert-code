@@ -1,12 +1,13 @@
 [files]
 extend-exclude = [
-    "ACCESSIBILITE.md",
-    "ARCHITECTURE.md",
+    "docs/ACCESSIBILITE.md",
+    "docs/ARCHITECTURE.md",
+    "docs/COMMANDES.md",
+    "docs/SECURITE.md",
     "CHANGELOG.md",
-    "COMMANDES.md",
     "CONTRIBUTING.md",
     "README.md",
-    "SECURITE.md",
+    "WORK.md",
     "albert-code.sh",
     "albert-code.bat",
 ]

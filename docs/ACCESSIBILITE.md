@@ -38,7 +38,7 @@ L'environnement d'exécution principal étant un émulateur de terminal, l'acces
 
 | Critère | Statut | Détail |
 |---------|--------|--------|
-| Toutes les fonctionnalités accessibles au clavier | Conforme | Aucune action ne nécessite la souris. La liste complète des raccourcis est documentée dans `COMMANDES.md`. |
+| Toutes les fonctionnalités accessibles au clavier | Conforme | Aucune action ne nécessite la souris. La liste complète des raccourcis est documentée dans `docs/COMMANDES.md`. |
 | Focus visible | Conforme | Les widgets Textual mettent en évidence le focus (bordure et inversion vidéo). |
 | Ordre de tabulation cohérent | Conforme | L'ordre suit la disposition visuelle dans les modales (approbation, question, picker de session, configuration). |
 | Échappatoire dans les modales | Conforme | `Échap` ferme tous les dialogues et restitue le focus à la zone de saisie. |
