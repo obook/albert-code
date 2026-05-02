@@ -53,10 +53,28 @@ pause
 goto :menu
 
 :prepare
+REM Detecter la console legacy (cmd.exe / conhost classique). La TUI ne s'affiche
+REM que dans Windows Terminal. WT_SESSION est defini dans toute session WT.
+REM Cette verif s'applique uniquement au mode interactif (pas si on a -p, -v, -h, etc).
+if not "%~1"=="" goto :skip_tty_check
+if not "%WT_SESSION%"=="" goto :skip_tty_check
+echo.
+echo La console actuelle ne supporte pas l'interface d'Albert Code.
+echo L'invite de commande classique ^(cmd.exe^) ne sait pas afficher la TUI Textual.
+echo.
+echo Solutions :
+echo   1. Installer Windows Terminal ^(https://aka.ms/terminal^) et y relancer ce .bat.
+echo   2. Utiliser le mode programmatique sans TUI : albert-code.bat -p "votre prompt"
+echo.
+pause
+goto :menu
+:skip_tty_check
+
 REM Verifier que python est disponible
 where python >nul 2>&1
 if errorlevel 1 (
     echo Erreur : python introuvable. Installer Python 3.12+ avant de continuer.
+    pause
     exit /b 1
 )
 
@@ -108,3 +126,6 @@ echo.
 REM Appel par chemin absolu pour eviter la recursion : `where albert-code`
 REM trouve d'abord ce script .bat dans le dossier courant, puis l'.exe du venv
 "%VENV_DIR%\Scripts\albert-code.exe" %*
+REM Pause finale uniquement si la fenetre s'est ouverte par double-clic et qu'on
+REM est entre par le menu (sinon, retour normal au shell appelant).
+if "%~1"=="" pause
