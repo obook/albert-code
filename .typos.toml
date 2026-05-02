@@ -1,3 +1,14 @@
+[files]
+extend-exclude = [
+    "ACCESSIBILITE.md",
+    "ARCHITECTURE.md",
+    "COMMANDES.md",
+    "README.md",
+    "SECURITE.md",
+    "albert-code.sh",
+    "albert-code.bat",
+]
+
 [default]
 extend-ignore-re = ["(?m)^.*(#|//)\\s*typos:disable-line$", "datas"]
 
@@ -5,3 +16,4 @@ extend-ignore-re = ["(?m)^.*(#|//)\\s*typos:disable-line$", "datas"]
 iterm = "iterm"
 ITERM = "ITERM"
 asend = "asend"
+ype = "ype"

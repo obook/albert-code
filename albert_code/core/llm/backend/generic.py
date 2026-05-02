@@ -363,7 +363,7 @@ def _parse_retry_after_from_body(body: str) -> float | None:
 
 
 def _parse_retry_after(value: str) -> float | None:
-    """Parse a Retry-After header. Returns seconds, or None if unparseable.
+    """Parse a Retry-After header. Returns seconds, or None if unparsable.
 
     Per RFC 7231, the value may be either a non-negative integer (seconds)
     or an HTTP-date.

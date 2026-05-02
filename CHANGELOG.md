@@ -210,7 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped agent-client-protocol to 0.7.1
 - Refactored UI to require AgentLoop at VibeApp construction
 - Updated README with new MCP server config
-- Improved readability of the AskUserQuerstion tool output
+- Improved readability of the AskUserQuestion tool output
 
 ### Fixed
 
