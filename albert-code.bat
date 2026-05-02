@@ -16,6 +16,22 @@ if not "%~1"=="" goto :prepare
 REM Aucun argument : verifier d'abord la console avant d'afficher le menu.
 REM Le menu et la TUI ne fonctionnent que dans Windows Terminal.
 if not "%WT_SESSION%"=="" goto :menu
+
+REM Garde anti-boucle : si on a deja tente un relancement, montrer l'aide
+REM directement plutot que de relancer indefiniment (au cas ou WT_SESSION
+REM ne serait pas propagee correctement par Windows Terminal).
+if defined _ALBERT_RELAUNCHED goto :show_console_error
+
+REM Tenter le relancement automatique dans Windows Terminal s'il est installe.
+where wt >nul 2>&1
+if errorlevel 1 goto :show_console_error
+
+echo Console actuelle non supportee, relancement dans Windows Terminal...
+set _ALBERT_RELAUNCHED=1
+start "" wt.exe new-tab --title "Albert Code" -d "%CD%" cmd.exe /k "%~f0"
+exit /b 0
+
+:show_console_error
 echo.
 echo ===========================================================
 echo  Console non supportee
