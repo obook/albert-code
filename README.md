@@ -32,7 +32,12 @@ Le lanceur crée automatiquement un environnement virtuel Python (`.venv/`), ins
 Sous Windows, utiliser `albert-code.bat` à la place de `albert-code.sh`.
 
 > [!WARNING]
-> **Sous Windows : ne pas lancer Albert Code dans l'invite de commande classique (`cmd.exe`) ni dans une fenêtre PowerShell standard.** L'interface en terminal (Textual) ne s'y affiche pas et l'application semble figée. Installer [Windows Terminal](https://aka.ms/terminal) (gratuit, Microsoft Store) et y lancer le `.bat`. Albert Code détecte ce cas au démarrage et affiche un message explicite plutôt que de geler.
+> **Sous Windows : Albert Code a besoin de Windows Terminal pour afficher son interface.** L'invite de commande classique (`cmd.exe`) et la fenêtre PowerShell standard ne savent pas afficher la TUI Textual.
+>
+> Le `.bat` se débrouille tout seul dans la plupart des cas :
+> - Si tu lances `albert-code.bat` depuis `cmd.exe` ou PowerShell **avec [Windows Terminal](https://aka.ms/terminal) installé**, le script se relance automatiquement dans une fenêtre Windows Terminal.
+> - Si Windows Terminal n'est **pas installé**, Albert Code affiche un message clair plutôt que de geler. Installer Windows Terminal (gratuit, Microsoft Store) résout le problème.
+> - Le mode programmatique `albert-code.bat -p "ton prompt"` fonctionne dans n'importe quelle console car il n'utilise pas la TUI.
 
 ## 3 - Utilisation
 

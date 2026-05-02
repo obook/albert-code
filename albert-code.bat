@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM Lanceur albert-code -- Windows
 REM Cree le venv Python au premier lancement, puis lance albert-code.
 REM Usage : albert-code.bat [options] [PROMPT]
@@ -8,6 +9,31 @@ set SCRIPT_DIR=%~dp0
 REM Supprimer le \ final pour eviter les doubles \ dans les chemins
 if "%SCRIPT_DIR:~-1%"=="\" set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
 set VENV_DIR=%SCRIPT_DIR%\.venv
+
+REM ---- Auto-relancement dans Windows Terminal ----
+REM L'invite de commande classique (cmd.exe / conhost legacy) ne sait pas
+REM afficher la TUI Textual. Si Windows Terminal (wt.exe) est installe et
+REM qu'on est encore en legacy, on relance le script dans une nouvelle fenetre
+REM Windows Terminal. Les flags non-interactifs (-h, -v, --setup, -p) restent
+REM dans la fenetre courante car ils n'ont pas besoin de TUI.
+if not "%WT_SESSION%"=="" goto :skip_wt_relaunch
+set _ALBERT_INTERACTIVE=1
+for %%A in (%*) do (
+    if /i "%%~A"=="-h" set _ALBERT_INTERACTIVE=
+    if /i "%%~A"=="--help" set _ALBERT_INTERACTIVE=
+    if /i "%%~A"=="-v" set _ALBERT_INTERACTIVE=
+    if /i "%%~A"=="--version" set _ALBERT_INTERACTIVE=
+    if /i "%%~A"=="--setup" set _ALBERT_INTERACTIVE=
+    if /i "%%~A"=="-p" set _ALBERT_INTERACTIVE=
+    if /i "%%~A"=="--prompt" set _ALBERT_INTERACTIVE=
+)
+if not defined _ALBERT_INTERACTIVE goto :skip_wt_relaunch
+where wt >nul 2>&1
+if errorlevel 1 goto :skip_wt_relaunch
+echo Windows Terminal detecte, relancement pour un affichage correct de la TUI...
+start "" wt.exe new-tab --title "Albert Code" -d "%CD%" cmd.exe /k "%~f0" %*
+exit /b 0
+:skip_wt_relaunch
 
 REM Verifier que python est disponible
 where python >nul 2>&1
