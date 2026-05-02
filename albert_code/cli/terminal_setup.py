@@ -7,7 +7,32 @@ import os
 from pathlib import Path
 import platform
 import subprocess
+import sys
 from typing import Any, Literal
+
+_MODERN_WINDOWS_TERMINAL_ENV_VARS = (
+    "WT_SESSION",
+    "WEZTERM_PANE",
+    "ConEmuPID",
+    "TERM_PROGRAM",
+    "ALACRITTY_LOG",
+    "KITTY_WINDOW_ID",
+)
+
+
+def is_legacy_windows_console() -> bool:
+    """Return True when running inside the legacy Windows console (cmd.exe / conhost).
+
+    The legacy conhost lacks the input and rendering features that Textual
+    requires, so the TUI appears frozen instead of starting. Modern hosts
+    (Windows Terminal, WezTerm, ConEmu, mintty / Git Bash, VS Code, Alacritty,
+    Kitty, ...) all expose at least one distinctive environment variable.
+    """
+    if sys.platform != "win32":
+        return False
+    if not sys.stdout.isatty():
+        return False
+    return not any(os.environ.get(var) for var in _MODERN_WINDOWS_TERMINAL_ENV_VARS)
 
 
 class Terminal(Enum):

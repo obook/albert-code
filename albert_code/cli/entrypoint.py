@@ -8,6 +8,7 @@ import sys
 from rich import print as rprint
 
 from albert_code import __version__
+from albert_code.cli.terminal_setup import is_legacy_windows_console
 from albert_code.core.agents.models import BuiltinAgentName
 from albert_code.core.paths.config_paths import unlock_config_paths
 from albert_code.core.trusted_folders import (
@@ -159,6 +160,17 @@ def main() -> None:
         os.chdir(workdir)
 
     is_interactive = args.prompt is None
+    if is_interactive and is_legacy_windows_console():
+        rprint(
+            "[red]Unsupported console: Albert Code's terminal UI does not work "
+            "in the legacy Windows command prompt (cmd.exe / conhost classic).[/]\n\n"
+            "[bold]Solutions:[/]\n"
+            "  1. Install [cyan]Windows Terminal[/] (free, Microsoft Store) "
+            "and run albert-code from there.\n"
+            "  2. Use programmatic mode without a TUI: "
+            '[cyan]albert-code -p "your prompt"[/]\n'
+        )
+        sys.exit(1)
     if is_interactive:
         check_and_resolve_trusted_folder()
     unlock_config_paths()

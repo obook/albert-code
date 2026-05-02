@@ -31,6 +31,9 @@ Le lanceur crée automatiquement un environnement virtuel Python (`.venv/`), ins
 
 Sous Windows, utiliser `albert-code.bat` à la place de `albert-code.sh`.
 
+> [!WARNING]
+> **Sous Windows : ne pas lancer Albert Code dans l'invite de commande classique (`cmd.exe`) ni dans une fenêtre PowerShell standard.** L'interface en terminal (Textual) ne s'y affiche pas et l'application semble figée. Installer [Windows Terminal](https://aka.ms/terminal) (gratuit, Microsoft Store) et y lancer le `.bat`. Albert Code détecte ce cas au démarrage et affiche un message explicite plutôt que de geler.
+
 ## 3 - Utilisation
 
 ```bash
