@@ -23,14 +23,6 @@ from textual.widgets import Static
 from albert_code import __version__ as CORE_VERSION
 from albert_code.cli.clipboard import copy_selection_to_clipboard
 from albert_code.cli.commands import CommandRegistry
-from albert_code.cli.plan_offer.adapters.http_whoami_gateway import HttpWhoAmIGateway
-from albert_code.cli.plan_offer.decide_plan_offer import (
-    PlanType,
-    decide_plan_offer,
-    plan_offer_cta,
-    resolve_api_key_for_plan,
-)
-from albert_code.cli.plan_offer.ports.whoami_gateway import WhoAmIGateway
 from albert_code.cli.terminal_setup import setup_terminal
 from albert_code.cli.textual_ui.handlers.event_handler import EventHandler
 from albert_code.cli.textual_ui.notifications import (
@@ -219,7 +211,6 @@ class VibeApp(App):  # noqa: PLR0904
         update_notifier: UpdateGateway | None = None,
         update_cache_repository: UpdateCacheRepository | None = None,
         current_version: str = CORE_VERSION,
-        plan_offer_gateway: WhoAmIGateway | None = None,
         terminal_notifier: NotificationPort | None = None,
         **kwargs: Any,
     ) -> None:
@@ -261,7 +252,6 @@ class VibeApp(App):  # noqa: PLR0904
         self._update_notifier = update_notifier
         self._update_cache_repository = update_cache_repository
         self._current_version = current_version
-        self._plan_offer_gateway = plan_offer_gateway
         self._initial_prompt = initial_prompt
         self._teleport_on_start = teleport_on_start and self.config.nuage_enabled
         self._last_escape_time: float | None = None
@@ -1579,9 +1569,6 @@ class VibeApp(App):  # noqa: PLR0904
         content = load_whats_new_content()
         if content is not None:
             whats_new_message = WhatsNewMessage(content)
-            plan_offer = await self._plan_offer_cta()
-            if plan_offer is not None:
-                whats_new_message = WhatsNewMessage(f"{content}\n\n{plan_offer}")
             if self._history_widget_indices:
                 whats_new_message.add_class("after-history")
             messages_area = self._cached_messages_area or self.query_one("#messages")
@@ -1592,29 +1579,6 @@ class VibeApp(App):  # noqa: PLR0904
             if should_anchor:
                 chat.anchor()
         await mark_version_as_seen(self._current_version, self._update_cache_repository)
-
-    async def _plan_offer_cta(self) -> str | None:
-        self.plan_type = PlanType.UNKNOWN
-
-        if self._plan_offer_gateway is None:
-            return
-
-        try:
-            active_model = self.config.get_active_model()
-            provider = self.config.get_provider_for_model(active_model)
-
-            api_key = resolve_api_key_for_plan(provider)
-            action, plan_type = await decide_plan_offer(
-                api_key, self._plan_offer_gateway
-            )
-
-            self.plan_type = plan_type
-            return plan_offer_cta(action)
-        except Exception as exc:
-            logger.warning(
-                "Plan-offer check failed (%s).", type(exc).__name__, exc_info=True
-            )
-            return
 
     async def _mount_and_scroll(
         self, widget: Widget, after: Widget | None = None
@@ -1772,14 +1736,12 @@ def run_textual_ui(
 ) -> None:
     update_notifier = PyPIUpdateGateway(project_name="albert-code")
     update_cache_repository = FileSystemUpdateCacheRepository()
-    plan_offer_gateway = HttpWhoAmIGateway()
     app = VibeApp(
         agent_loop=agent_loop,
         initial_prompt=initial_prompt,
         teleport_on_start=teleport_on_start,
         update_notifier=update_notifier,
         update_cache_repository=update_cache_repository,
-        plan_offer_gateway=plan_offer_gateway,
     )
     session_id = app.run()
     _print_session_resume_message(session_id)

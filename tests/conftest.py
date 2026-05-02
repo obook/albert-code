@@ -7,13 +7,11 @@ from typing import Any
 import pytest
 import tomli_w
 
-from tests.cli.plan_offer.adapters.fake_whoami_gateway import FakeWhoAmIGateway
 from tests.stubs.fake_backend import FakeBackend
 from tests.update_notifier.adapters.fake_update_cache_repository import (
     FakeUpdateCacheRepository,
 )
 from tests.update_notifier.adapters.fake_update_gateway import FakeUpdateGateway
-from albert_code.cli.plan_offer.ports.whoami_gateway import WhoAmIResponse
 from albert_code.cli.textual_ui.app import CORE_VERSION, VibeApp
 from albert_code.core.agent_loop import AgentLoop
 from albert_code.core.agents.models import BuiltinAgentName
@@ -180,18 +178,7 @@ def build_test_vibe_app(
         if update_cache_repository is None
         else update_cache_repository
     )
-    plan_offer_gateway = kwargs.pop("plan_offer_gateway", None)
-    resolved_plan_offer_gateway = (
-        FakeWhoAmIGateway(
-            WhoAmIResponse(
-                is_pro_plan=True,
-                advertise_pro_plan=False,
-                prompt_switching_to_pro_plan=False,
-            )
-        )
-        if plan_offer_gateway is None
-        else plan_offer_gateway
-    )
+    kwargs.pop("plan_offer_gateway", None)
     current_version = kwargs.pop("current_version", None)
     resolved_current_version = (
         CORE_VERSION if current_version is None else current_version
@@ -202,7 +189,6 @@ def build_test_vibe_app(
         current_version=resolved_current_version,
         update_notifier=resolved_update_notifier,
         update_cache_repository=resolved_update_cache_repository,
-        plan_offer_gateway=resolved_plan_offer_gateway,
         initial_prompt=kwargs.pop("initial_prompt", None),
         **kwargs,
     )

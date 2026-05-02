@@ -364,7 +364,7 @@ class VibeConfig(BaseSettings):
     context_warnings: bool = False
     auto_approve: bool = False
     auto_fallback_enabled: bool = True
-    enable_telemetry: bool = True
+    enable_telemetry: bool = False
     system_prompt_id: str = "cli"
     include_commit_signature: bool = True
     include_model_info: bool = True

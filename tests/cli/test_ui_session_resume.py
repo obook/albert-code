@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.cli.plan_offer.adapters.fake_whoami_gateway import FakeWhoAmIGateway
 from tests.conftest import (
     build_test_agent_loop,
     build_test_vibe_app,
@@ -16,7 +15,6 @@ from tests.update_notifier.adapters.fake_update_cache_repository import (
     FakeUpdateCacheRepository,
 )
 from tests.update_notifier.adapters.fake_update_gateway import FakeUpdateGateway
-from albert_code.cli.plan_offer.ports.whoami_gateway import WhoAmIResponse
 from albert_code.cli.textual_ui.widgets.messages import (
     AssistantMessage,
     UserMessage,
@@ -163,18 +161,10 @@ async def test_ui_rebuilds_history_when_whats_new_is_shown(
         seen_whats_new_version=None,
     )
     update_cache_repository = FakeUpdateCacheRepository(update_cache=update_cache)
-    plan_offer_gateway = FakeWhoAmIGateway(
-        WhoAmIResponse(
-            is_pro_plan=False,
-            advertise_pro_plan=True,
-            prompt_switching_to_pro_plan=False,
-        )
-    )
     app = build_test_vibe_app(
         agent_loop=agent_loop,
         update_notifier=FakeUpdateGateway(update=None),
         update_cache_repository=update_cache_repository,
-        plan_offer_gateway=plan_offer_gateway,
         current_version="1.0.0",
         config=config,
     )

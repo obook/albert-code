@@ -5,9 +5,7 @@ import time
 import pytest
 from textual.widgets import Button
 
-from tests.cli.plan_offer.adapters.fake_whoami_gateway import FakeWhoAmIGateway
 from tests.conftest import build_test_agent_loop
-from albert_code.cli.plan_offer.ports.whoami_gateway import WhoAmIResponse
 from albert_code.cli.textual_ui.app import ChatScroll, VibeApp
 from albert_code.cli.textual_ui.widgets.load_more import (
     HistoryLoadMoreMessage,
@@ -29,14 +27,6 @@ def vibe_config() -> VibeConfig:
     )
 
 
-def _pro_plan_gateway() -> FakeWhoAmIGateway:
-    return FakeWhoAmIGateway(
-        response=WhoAmIResponse(
-            is_pro_plan=True,
-            advertise_pro_plan=False,
-            prompt_switching_to_pro_plan=False,
-        )
-    )
 
 
 async def _wait_until(pause, predicate, timeout: float = 2.0) -> None:
@@ -70,7 +60,7 @@ async def test_ui_session_incremental_loader_shows_tail_and_load_more(
         LLMMessage(role=Role.user, content=f"msg-{idx}") for idx in range(66)
     ])
 
-    app = VibeApp(agent_loop=agent_loop, plan_offer_gateway=_pro_plan_gateway())
+    app = VibeApp(agent_loop=agent_loop)
 
     async with app.run_test() as pilot:
         await _wait_until(
@@ -97,7 +87,7 @@ async def test_ui_session_incremental_loader_load_more_shows_remaining_count(
         for idx in range(total_messages)
     ])
 
-    app = VibeApp(agent_loop=agent_loop, plan_offer_gateway=_pro_plan_gateway())
+    app = VibeApp(agent_loop=agent_loop)
 
     async with app.run_test() as pilot:
         await _wait_until(
@@ -128,7 +118,7 @@ async def test_ui_session_incremental_loader_load_more_batches_until_done(
         LLMMessage(role=Role.user, content=f"msg-{idx}") for idx in range(31)
     ])
 
-    app = VibeApp(agent_loop=agent_loop, plan_offer_gateway=_pro_plan_gateway())
+    app = VibeApp(agent_loop=agent_loop)
 
     async with app.run_test() as pilot:
         await _wait_until(
@@ -164,7 +154,7 @@ async def test_ui_session_incremental_loader_keeps_top_alignment_when_not_scroll
         for idx in range(HISTORY_RESUME_TAIL_MESSAGES + 1)
     ])
 
-    app = VibeApp(agent_loop=agent_loop, plan_offer_gateway=_pro_plan_gateway())
+    app = VibeApp(agent_loop=agent_loop)
 
     async with app.run_test(size=(120, 80)) as pilot:
         await _wait_for_load_more(app, pilot.pause)
