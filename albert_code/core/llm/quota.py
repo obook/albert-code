@@ -123,9 +123,7 @@ def sum_prompt_tokens_today(
     return total
 
 
-def count_requests_today(
-    usage_events: list[dict[str, object]], model_name: str
-) -> int:
+def count_requests_today(usage_events: list[dict[str, object]], model_name: str) -> int:
     """Count `model_name` calls that happened today (UTC).
 
     Mirror of `sum_prompt_tokens_today` for the rpd (requests per day)

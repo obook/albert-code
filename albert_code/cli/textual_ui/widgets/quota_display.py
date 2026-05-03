@@ -26,6 +26,11 @@ if TYPE_CHECKING:
 WARNING_RATIO = 0.8
 DANGER_RATIO = 0.95
 
+# Thresholds for compact token formatting (3500 -> 3.5k, 128000 -> 128k, 2.5M -> 2.5M).
+_THOUSAND = 1_000
+_HUNDRED_THOUSAND = 100_000
+_MILLION = 1_000_000
+
 
 class QuotaDisplay(NoMarkupStatic):
     """Compact rpm/tpm gauge for the bottom bar."""
@@ -94,10 +99,10 @@ def _ratio(used: int, limit: int | None) -> float:
 
 def _compact_tokens(value: int) -> str:
     """Format a token count compactly (3500 -> 3.5k, 128000 -> 128k)."""
-    if value >= 1_000_000:
-        return f"{value / 1_000_000:.1f}M"
-    if value >= 100_000:
-        return f"{value // 1_000}k"
-    if value >= 1_000:
-        return f"{value / 1_000:.1f}k".replace(".0k", "k")
+    if value >= _MILLION:
+        return f"{value / _MILLION:.1f}M"
+    if value >= _HUNDRED_THOUSAND:
+        return f"{value // _THOUSAND}k"
+    if value >= _THOUSAND:
+        return f"{value / _THOUSAND:.1f}k".replace(".0k", "k")
     return str(value)

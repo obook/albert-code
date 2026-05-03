@@ -54,8 +54,8 @@ from albert_code.cli.textual_ui.widgets.messages import (
 from albert_code.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
 from albert_code.cli.textual_ui.widgets.path_display import PathDisplay
 from albert_code.cli.textual_ui.widgets.proxy_setup_app import ProxySetupApp
-from albert_code.cli.textual_ui.widgets.quota_display import QuotaDisplay
 from albert_code.cli.textual_ui.widgets.question_app import QuestionApp
+from albert_code.cli.textual_ui.widgets.quota_display import QuotaDisplay
 from albert_code.cli.textual_ui.widgets.session_picker import SessionPickerApp
 from albert_code.cli.textual_ui.widgets.teleport_message import TeleportMessage
 from albert_code.cli.textual_ui.widgets.tools import ToolResultMessage
@@ -1803,9 +1803,7 @@ class VibeApp(App):  # noqa: PLR0904
                         rpd_used = count_requests_today(events, canonical)
                         tpd_used = sum_prompt_tokens_today(events, canonical)
                         throttler.update_daily_usage(
-                            canonical,
-                            rpd_used=rpd_used,
-                            tpd_used=tpd_used,
+                            canonical, rpd_used=rpd_used, tpd_used=tpd_used
                         )
                         self._refresh_quota_display()
             except Exception:
