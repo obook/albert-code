@@ -915,13 +915,27 @@ ExpandingBorder {
 }
 
 PathDisplay,
-ContextProgress {
+ContextProgress,
+QuotaDisplay {
     width: auto;
     height: auto;
     background: transparent;
     padding: 0;
     margin: 0;
     color: ansi_bright_black;
+}
+
+QuotaDisplay {
+    margin-right: 2;
+}
+
+QuotaDisplay.quota-warning {
+    color: ansi_yellow;
+}
+
+QuotaDisplay.quota-danger {
+    color: ansi_red;
+    text-style: bold;
 }
 
 #banner-container {

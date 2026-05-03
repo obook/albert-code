@@ -98,6 +98,14 @@ class ConfigApp(Container):
         self._update_display()
         self.focus()
 
+    def _decorate_value(self, key: str, value: str) -> str:
+        """Cosmetic-only formatting on top of the raw value used for cycling."""
+        if key == "active_model":
+            for model in self.config.models:
+                if model.alias == value and model.name and model.name != value:
+                    return f"{value} ({model.name})"
+        return value
+
     def _get_display_value(self, setting: SettingDefinition) -> str:
         key = setting["key"]
         if key in self.changes:
@@ -116,8 +124,13 @@ class ConfigApp(Container):
 
             label: str = setting["label"]
             value: str = self._get_display_value(setting)
+            # For the model picker, show the canonical Albert name in
+            # parentheses after the local alias (e.g. "albert-code
+            # (Qwen/Qwen3-Coder-30B-A3B-Instruct)"). The stored value
+            # stays the alias - the cycle logic relies on it.
+            display_value = self._decorate_value(setting["key"], value)
 
-            text = f"{cursor}{label}: {value}"
+            text = f"{cursor}{label}: {display_value}"
 
             widget.update(text)
 

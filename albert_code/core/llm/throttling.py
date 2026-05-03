@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 from albert_code.core.llm.quota import (
     RouterLimit,
     documented_limits_for,
+    fetch_albert_aliases,
     fetch_albert_quotas,
     is_albert_provider,
 )
@@ -62,6 +63,12 @@ class UsageSnapshot:
     debounce_seconds: float
     blocked_for: float
     limit_source: str
+    # Daily counters (today since midnight UTC), populated by the periodic
+    # /v1/me/usage refresh. Stay None when no fetch has happened yet.
+    rpd_limit: int | None = None
+    rpd_used: int | None = None
+    tpd_limit: int | None = None
+    tpd_used: int | None = None
 
 
 class RollingWindow:
@@ -135,6 +142,17 @@ class Throttler:
         # Set when 429 records a Retry-After-derived backoff that should
         # block the next acquire even if the rolling window says OK.
         self._blocked_until: float = 0.0
+        # Daily counters cached from /v1/me/usage by an external poller
+        # (the bottom-bar gauge refreshes them every 30 s). None means
+        # "not yet fetched", which the snapshot will surface so the UI
+        # can hide the rpd/tpd line until data arrives. Keys are
+        # canonical model ids (alias-resolved at write time).
+        self._daily_rpd_used: dict[str, int] = {}
+        self._daily_tpd_used: dict[str, int] = {}
+        # Server-side alias -> canonical id, populated by /v1/models on
+        # init. Lets the throttler apply per-model limits to alias-based
+        # configs (e.g. `openweight-code` -> `Qwen/Qwen3-Coder-30B-...`).
+        self._alias_to_canonical: dict[str, str] = {}
 
     async def acquire(
         self, *, estimated_prompt_tokens: int = 0, model_name: str | None = None
@@ -169,8 +187,9 @@ class Throttler:
         self, model_name: str | None
     ) -> tuple[int | None, int | None]:
         """Documented per-model EXP limits if available, else account-wide max."""
-        if model_name:
-            doc = documented_limits_for(model_name)
+        canonical = self.resolve_alias(model_name)
+        if canonical:
+            doc = documented_limits_for(canonical)
             if doc is not None:
                 return doc.exp.rpm, doc.exp.tpm
         return self._rpm, self._tpm
@@ -196,6 +215,11 @@ class Throttler:
         if not is_albert_provider(self._provider):
             return
         info = await fetch_albert_quotas(self._provider)
+        # Aliases are best-effort: if /v1/models is unreachable, the rest
+        # of the throttler keeps working with the raw model name.
+        aliases = await fetch_albert_aliases(self._provider)
+        if aliases:
+            self._alias_to_canonical = aliases
         if info is None:
             logger.debug("Throttler: no quotas available for %s", self._provider.name)
             return
@@ -208,11 +232,23 @@ class Throttler:
         self._rpm = _max_positive(info.limits, "rpm")
         self._tpm = _max_positive(info.limits, "tpm")
         logger.info(
-            "Throttler initialized for %s: rpm=%s tpm=%s",
+            "Throttler initialized for %s: rpm=%s tpm=%s aliases=%d",
             self._provider.name,
             self._rpm,
             self._tpm,
+            len(self._alias_to_canonical),
         )
+
+    def resolve_alias(self, model_name: str | None) -> str | None:
+        """Map an Albert alias to its canonical model id, or pass through.
+
+        Returns the canonical id when `model_name` is a known alias
+        (resolved from /v1/models on init), otherwise returns the input
+        unchanged. None stays None.
+        """
+        if model_name is None:
+            return None
+        return self._alias_to_canonical.get(model_name, model_name)
 
     def record_rate_limit(
         self,
@@ -252,11 +288,26 @@ class Throttler:
         embeddings router that don't apply to chat models).
         """
         rpm, tpm = self._effective_limits(model_name)
+        canonical = self.resolve_alias(model_name)
         source = (
             "documented EXP tier"
-            if (model_name and documented_limits_for(model_name) is not None)
+            if (canonical and documented_limits_for(canonical) is not None)
             else "max across routers"
         )
+        # Documented daily caps (rpd/tpd) live in the EXP tier. The used
+        # values are cached from /v1/me/usage by the external poller.
+        # The cache is keyed by canonical id, so resolve aliases first.
+        rpd_limit: int | None = None
+        tpd_limit: int | None = None
+        rpd_used: int | None = None
+        tpd_used: int | None = None
+        if canonical:
+            doc = documented_limits_for(canonical)
+            if doc is not None:
+                rpd_limit = doc.exp.rpd
+                tpd_limit = doc.exp.tpd
+            rpd_used = self._daily_rpd_used.get(canonical)
+            tpd_used = self._daily_tpd_used.get(canonical)
         return UsageSnapshot(
             provider=self._provider.name,
             model_name=model_name,
@@ -268,7 +319,31 @@ class Throttler:
             debounce_seconds=self._debounce_seconds(rpm),
             blocked_for=max(0.0, self._blocked_until - self._clock()),
             limit_source=source,
+            rpd_limit=rpd_limit,
+            rpd_used=rpd_used,
+            tpd_limit=tpd_limit,
+            tpd_used=tpd_used,
         )
+
+    def update_daily_usage(
+        self, model_name: str, *, rpd_used: int | None, tpd_used: int | None
+    ) -> None:
+        """Cache the cross-process daily usage for `model_name`.
+
+        Called by the periodic /v1/me/usage poller. None values clear the
+        cache (e.g. if a refresh fails). The snapshot picks these up on
+        the next call. Storage is keyed by canonical id so callers can
+        pass either alias or canonical and `usage_snapshot` will find it.
+        """
+        canonical = self.resolve_alias(model_name) or model_name
+        if rpd_used is None:
+            self._daily_rpd_used.pop(canonical, None)
+        else:
+            self._daily_rpd_used[canonical] = max(0, int(rpd_used))
+        if tpd_used is None:
+            self._daily_tpd_used.pop(canonical, None)
+        else:
+            self._daily_tpd_used[canonical] = max(0, int(tpd_used))
 
     def record_success(self, *, model_alias: str | None = None) -> None:
         """Reset the consecutive-429 counter after a successful call."""

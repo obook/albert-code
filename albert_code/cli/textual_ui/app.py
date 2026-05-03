@@ -54,6 +54,7 @@ from albert_code.cli.textual_ui.widgets.messages import (
 from albert_code.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
 from albert_code.cli.textual_ui.widgets.path_display import PathDisplay
 from albert_code.cli.textual_ui.widgets.proxy_setup_app import ProxySetupApp
+from albert_code.cli.textual_ui.widgets.quota_display import QuotaDisplay
 from albert_code.cli.textual_ui.widgets.question_app import QuestionApp
 from albert_code.cli.textual_ui.widgets.session_picker import SessionPickerApp
 from albert_code.cli.textual_ui.widgets.teleport_message import TeleportMessage
@@ -293,6 +294,7 @@ class VibeApp(App):  # noqa: PLR0904
         with Horizontal(id="bottom-bar"):
             yield PathDisplay(self.config.displayed_workdir or Path.cwd())
             yield NoMarkupStatic(id="spacer")
+            yield QuotaDisplay(id="bottom-quota")
             yield NoMarkupStatic(self._format_model_label(), id="bottom-model")
             yield ContextProgress()
 
@@ -331,6 +333,11 @@ class VibeApp(App):  # noqa: PLR0904
         await self._resume_history_from_messages()
         await self._check_and_show_whats_new()
         self.run_worker(self._check_quota_warning(), exclusive=False)
+        # Live rpm/tpm gauge in the bottom bar. Refresh frequently so the
+        # rolling 60-second window stays visible without a slash command.
+        self.run_worker(self._prefetch_quota_limits(), exclusive=False)
+        self._refresh_quota_display()
+        self.set_interval(3.0, self._refresh_quota_display)
         self._schedule_update_notification()
         self.agent_loop.emit_new_session_telemetry()
 
@@ -896,6 +903,23 @@ class VibeApp(App):  # noqa: PLR0904
         )
         self.notify(message, title=title, severity=severity, timeout=8)
 
+    def _refresh_model_label(self) -> None:
+        """Re-render the `#bottom-model` widget from the live config + agent_loop.
+
+        Called after `/config` saves a new active model and from the 3 s
+        timer so that auto-fallback transitions (which don't mutate the
+        config but route via `_last_resolved_model_alias`) also surface.
+        Silent on any failure: this is purely cosmetic.
+        """
+        try:
+            widget = self.query_one("#bottom-model", NoMarkupStatic)
+        except Exception:
+            return
+        try:
+            widget.update(self._format_model_label())
+        except Exception:
+            pass
+
     def _format_model_label(self) -> str:
         """Format the active model for the bottom bar as `⚙ alias (short-name)`.
 
@@ -904,18 +928,35 @@ class VibeApp(App):  # noqa: PLR0904
           (e.g. `Qwen/Qwen3-Coder-30B-A3B-Instruct` -> `Qwen3-Coder-30B-A3B-Instruct`).
         - Falls back to a single value if alias and short-name coincide,
           and to the raw `active_model` string if no model matches the config.
+        - When auto-fallback is currently active, prefixes with `↳` and
+          shows the fallback model so the user knows requests are
+          temporarily routed elsewhere.
         """
         try:
-            model = self.config.get_active_model()
+            primary = self.config.get_active_model()
         except ValueError:
             return f"⚙ {self.config.active_model}"
 
-        alias = model.alias or ""
-        short_name = model.name.split("/")[-1] if "/" in model.name else model.name
+        # Pick the model that the agent loop actually resolved last - this
+        # reflects the auto-fallback even though the config's active_model
+        # hasn't changed.
+        effective = primary
+        last_alias = getattr(self.agent_loop, "_last_resolved_model_alias", None)
+        if last_alias and last_alias != primary.alias:
+            for candidate in self.config.models:
+                if candidate.alias == last_alias:
+                    effective = candidate
+                    break
 
+        alias = effective.alias or ""
+        short_name = (
+            effective.name.split("/")[-1] if "/" in effective.name else effective.name
+        )
+
+        prefix = "↳" if effective is not primary else "⚙"
         if not alias or alias == short_name:
-            return f"⚙ {short_name}"
-        return f"⚙ {alias} ({short_name})"
+            return f"{prefix} {short_name}"
+        return f"{prefix} {alias} ({short_name})"
 
     async def _toggle_fallback(self) -> None:
         """Toggle the auto-fallback-on-429 strategy ON/OFF."""
@@ -1194,6 +1235,7 @@ class VibeApp(App):  # noqa: PLR0904
 
             if self._banner:
                 self._banner.set_state(base_config, self.agent_loop.skill_manager)
+            self._refresh_model_label()
             await self._mount_and_scroll(UserCommandMessage("Configuration reloaded."))
         except Exception as e:
             await self._mount_and_scroll(
@@ -1702,6 +1744,100 @@ class VibeApp(App):  # noqa: PLR0904
         body = "⚠ Quota check\n\n" + "\n\n".join(f"- {line}" for line in warnings)
         body += "\n\nUse `/limits` for the full picture or `/config` to switch model."
         await self._mount_and_scroll(WarningMessage(body, show_border=False))
+
+    async def _prefetch_quota_limits(self) -> None:
+        """Force the lazy /v1/me/info fetch so the bottom-bar gauge can appear
+        before the user's first message. Silent on failure: the gauge will
+        simply stay hidden until limits are known. Also kicks off the
+        periodic /v1/me/usage poller for the rpd/tpd counters.
+        """
+        from albert_code.core.llm.quota import is_albert_provider
+        from albert_code.core.llm.throttling import get_throttler
+
+        try:
+            active_model = self.config.get_active_model()
+            provider = self.config.get_provider_for_model(active_model)
+            if not is_albert_provider(provider):
+                return
+            throttler = get_throttler(provider)
+            await throttler._ensure_initialized()
+        except Exception:
+            return
+        # Refresh once initialised so the user doesn't have to wait 3 s.
+        self._refresh_quota_display()
+        # Daily counters need /v1/me/usage which is heavier than the
+        # per-minute snapshot. Poll every 30 s in a separate worker.
+        self.run_worker(self._poll_daily_usage_loop(), exclusive=False)
+
+    async def _poll_daily_usage_loop(self) -> None:
+        """Periodically refresh the rpd/tpd counters from /v1/me/usage.
+
+        Runs every 30 s. Each tick fetches the recent usage events, sums
+        today's requests and prompt tokens for the active model, and
+        pushes them into the shared throttler. Silent on any failure.
+        """
+        import asyncio
+
+        from albert_code.core.llm.quota import (
+            count_requests_today,
+            fetch_albert_usage,
+            is_albert_provider,
+            sum_prompt_tokens_today,
+        )
+        from albert_code.core.llm.throttling import get_throttler
+
+        while True:
+            try:
+                active_model = self.config.get_active_model()
+                provider = self.config.get_provider_for_model(active_model)
+                if is_albert_provider(provider):
+                    events = await fetch_albert_usage(provider)
+                    if events is not None:
+                        throttler = get_throttler(provider)
+                        # /v1/me/usage events carry the canonical id, never
+                        # the alias - so we must resolve before filtering.
+                        canonical = (
+                            throttler.resolve_alias(active_model.name)
+                            or active_model.name
+                        )
+                        rpd_used = count_requests_today(events, canonical)
+                        tpd_used = sum_prompt_tokens_today(events, canonical)
+                        throttler.update_daily_usage(
+                            canonical,
+                            rpd_used=rpd_used,
+                            tpd_used=tpd_used,
+                        )
+                        self._refresh_quota_display()
+            except Exception:
+                pass
+            await asyncio.sleep(30.0)
+
+    def _refresh_quota_display(self) -> None:
+        """Read the throttler snapshot and update the bottom-bar gauge.
+
+        Called every 3 s via set_interval. Silent on any failure (the gauge
+        is purely cosmetic and must never crash the UI). Also re-renders
+        the model label so auto-fallback transitions surface in the bar.
+        """
+        self._refresh_model_label()
+        try:
+            widget = self.query_one("#bottom-quota", QuotaDisplay)
+        except Exception:
+            return
+        try:
+            from albert_code.core.llm.quota import is_albert_provider
+            from albert_code.core.llm.throttling import get_throttler
+
+            active_model = self.config.get_active_model()
+            provider = self.config.get_provider_for_model(active_model)
+            if not is_albert_provider(provider):
+                widget.clear()
+                return
+            throttler = get_throttler(provider)
+            snap = throttler.usage_snapshot(model_name=active_model.name)
+            widget.update_from_snapshot(snap)
+        except Exception:
+            widget.clear()
 
     async def _check_and_show_whats_new(self) -> None:
         if self._update_cache_repository is None:

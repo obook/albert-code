@@ -84,6 +84,9 @@ class TestThrottler:
         respx_mock.get("http://test/v1/me/info").mock(
             return_value=httpx.Response(500, json={"error": "boom"})
         )
+        respx_mock.get("http://test/v1/models").mock(
+            return_value=httpx.Response(200, json={"data": []})
+        )
         throttler = Throttler(_make_provider())
         slept = await throttler.acquire()
         assert slept == 0.0
@@ -97,6 +100,9 @@ class TestThrottler:
             return_value=httpx.Response(
                 200, json={"limits": [{"router": 0, "type": "rpm", "value": 10}]}
             )
+        )
+        respx_mock.get("http://test/v1/models").mock(
+            return_value=httpx.Response(200, json={"data": []})
         )
         clock = FakeClock()
         sleep_calls: list[float] = []
@@ -127,6 +133,9 @@ class TestThrottler:
                 200, json={"limits": [{"router": 0, "type": "rpm", "value": 100}]}
             )
         )
+        respx_mock.get("http://test/v1/models").mock(
+            return_value=httpx.Response(200, json={"data": []})
+        )
         sleep_calls: list[float] = []
 
         async def fake_sleep(seconds: float) -> None:
@@ -149,6 +158,9 @@ class TestThrottler:
             return_value=httpx.Response(
                 200, json={"limits": [{"router": 0, "type": "tpm", "value": 100}]}
             )
+        )
+        respx_mock.get("http://test/v1/models").mock(
+            return_value=httpx.Response(200, json={"data": []})
         )
         clock = FakeClock()
         sleep_calls: list[float] = []

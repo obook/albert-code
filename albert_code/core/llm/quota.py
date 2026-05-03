@@ -123,6 +123,34 @@ def sum_prompt_tokens_today(
     return total
 
 
+def count_requests_today(
+    usage_events: list[dict[str, object]], model_name: str
+) -> int:
+    """Count `model_name` calls that happened today (UTC).
+
+    Mirror of `sum_prompt_tokens_today` for the rpd (requests per day)
+    counter: each event past midnight UTC counts for one request.
+    """
+    import datetime as dt
+
+    midnight_utc = (
+        dt.datetime.now(dt.UTC)
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .timestamp()
+    )
+    count = 0
+    for event in usage_events:
+        if not isinstance(event, dict):
+            continue
+        if event.get("model") != model_name:
+            continue
+        created = event.get("created")
+        if not isinstance(created, (int, float)) or created < midnight_utc:
+            continue
+        count += 1
+    return count
+
+
 async def fetch_albert_quotas_detailed(
     provider: ProviderConfig, *, timeout: float = 10.0
 ) -> QuotaFetchResult:
@@ -172,6 +200,52 @@ async def fetch_albert_quotas(
     if error is not None:
         logger.debug("Albert quota fetch failed: %s", error)
     return info
+
+
+async def fetch_albert_aliases(
+    provider: ProviderConfig, *, timeout: float = 5.0
+) -> dict[str, str] | None:
+    """Fetch /v1/models and build an `{alias: canonical_id}` map.
+
+    Albert publishes server-side aliases (e.g. `openweight-code` ->
+    `Qwen/Qwen3-Coder-30B-A3B-Instruct`) in the `aliases` field of each
+    model entry. Resolving them client-side lets the throttler apply
+    per-model limits and lets the daily usage poller match events
+    (which always carry the canonical id, not the alias).
+
+    Returns None on any failure (silent: the rest of the system keeps
+    working with the alias as opaque, just without per-model tiering).
+    """
+    if _check_albert_preconditions(provider) is not None:
+        return None
+    api_key = os.getenv(provider.api_key_env_var) or ""
+    url = f"{provider.api_base.rstrip('/')}/models"
+    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+    except httpx.HTTPError as exc:
+        logger.debug("Albert /v1/models fetch failed: %s", exc)
+        return None
+    except ValueError as exc:
+        logger.debug("Albert /v1/models returned non-JSON: %s", exc)
+        return None
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, list):
+        return None
+    mapping: dict[str, str] = {}
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        canonical = entry.get("id")
+        if not isinstance(canonical, str) or not canonical:
+            continue
+        for alias in entry.get("aliases") or []:
+            if isinstance(alias, str) and alias:
+                mapping[alias] = canonical
+    return mapping
 
 
 def group_limits_by_router(
