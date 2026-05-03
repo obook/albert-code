@@ -35,8 +35,15 @@ albert_code/
       types.py                       LLMMessage, ChunkEvent
       message_utils.py               Aides à la manipulation des messages
       format.py                      Résolution des appels d'outils
-      quota.py, throttling.py        Limitation de débit, suivi des quotas
-      exceptions.py                  Dépassement de contexte, échecs d'authentification
+      quota.py                       Récupération des quotas Albert (/v1/me/info, /v1/me/usage),
+                                     table statique des paliers EXP / PROD documentés
+      quota_state.py                 Persistance du dernier 429 daily-quota dans
+                                     ~/.albert-code/throttle_state.json
+      throttling.py                  Limitation de débit côté client (rolling 60 s + débounce
+                                     pré-appel), auto-fallback sur 429 répétés, snapshot pour
+                                     la jauge /rpm
+      exceptions.py                  BackendError, TerminalRateLimitError (429 fail-fast),
+                                     dépassement de contexte, échecs d'authentification
 
     tools/                           Cadre d'outils et implémentations
       base.py                        BaseTool, ToolStreamEvent
@@ -222,6 +229,12 @@ agent_loop                         (un appel d'outil décodé)
 **Dossiers de confiance.** Avant que l'agent ne touche au système de fichiers, le répertoire courant doit figurer dans la liste de confiance. Lors du premier usage, `setup/trusted_folders/trust_folder_dialog.py` demande explicitement à l'utilisateur. La décision est persistée globalement.
 
 **Notification de mise à jour.** La CLI consulte PyPI pour vérifier la disponibilité d'une nouvelle version au démarrage (avec un cache filesystem), affiche les notes de version issues de `whats_new.md` et propose une mise à jour en place. Le contrôle est implémenté en ports / adapters, ce qui permet de remplacer ou de mocker la passerelle (PyPI ou GitHub) et le backend de cache pendant les tests.
+
+**Limitation de débit Albert et 429.** Le client implémente trois lignes de défense contre les `429 Too Many Requests` de l'API Albert. La première est `core/llm/throttling.py` : un singleton `Throttler` par fournisseur tient une fenêtre glissante de 60 s pour les requêtes et les tokens, met l'agent en attente quand la consommation projetée approche le seuil, et impose un débounce minimum `60 / rpm + 0,05 s` entre deux appels. Quand la table `DOCUMENTED_MODEL_LIMITS` connaît le modèle actif, le throttler utilise sa limite EXP propre plutôt que le maximum compte-tout-routeur (Albert n'expose pas le mapping modèle → routeur via `/v1/models`, et le maximum global remonte typiquement les 500 rpm du routeur d'embeddings). La deuxième ligne est la lecture du `Retry-After` (en-tête conforme RFC 7231 plus regex de secours sur les corps qui mentionnent `"N requests per minute"`) : un sleep adapté précède le retry suivant. La troisième ligne est l'`auto-fallback` : après deux 429 consécutifs sur un modèle, l'agent bascule sur `ModelConfig.fallback_model` pendant 60 s puis restaure le modèle initial.
+
+**Distinction des 429 transitoires et terminaux.** Les 429 dont le corps contient le motif `per day` (quota journalier `rpd` ou `tpd` épuisé) sont reconnus comme terminaux par `is_terminal_rate_limit()` et déclenchent une `TerminalRateLimitError` qui contourne `async_retry`. Le quota ne se rétablira pas avant le reset de minuit UTC ; insister gaspille les retries restants et accélère la saturation du compte. Le même mécanisme est utilisé quand le seuil d'auto-fallback est atteint (`Throttler.is_fallback_trigger_reached`) : retenter le modèle primaire est inutile puisque le tour suivant utilisera de toute façon le modèle de secours.
+
+**Avertissement de quota au démarrage.** À l'ouverture de la TUI, le worker `_check_quota_warning` combine deux signaux complémentaires. Le premier est persisté dans `~/.albert-code/throttle_state.json` (module `quota_state.py`) : chaque 429 daily-quota y inscrit le modèle, le motif et l'horodatage UTC, avec décrochage automatique au prochain reset de minuit. Le second est calculé en direct depuis `GET /v1/me/usage` : la somme des `prompt_tokens` du jour pour le modèle actif est comparée au `tpd` documenté, avec un seuil d'alerte à 80 % et un seuil critique à 95 %. La combinaison couvre le cas d'une saturation observée par albert-code lors d'une session précédente comme celui d'une saturation observée par un autre client API du même compte.
 
 **TUI testée par snapshots.** `tests/snapshots/` utilise `pytest-textual-snapshot` pour capturer le rendu de la TUI au format SVG et l'asserter octet par octet contre la baseline versionnée. Les régressions visuelles sont détectées en CI ; les évolutions volontaires de l'interface régénèrent la baseline avec `pytest --snapshot-update`.
 

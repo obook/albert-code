@@ -9,9 +9,15 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) et le pr
 ### Ajouté
 
 - Récupération des quotas de l'API Albert via `GET /v1/me/info` (module `albert_code/core/llm/quota.py`).
-- Commandes slash `/limits` (et alias `/quota`) qui affichent les rpm / rpd / tpm / tpd par routeur sous forme de tableau Markdown.
-- Limiteur côté client adaptatif (`albert_code/core/llm/throttling.py`) : fenêtres glissantes de 60 s pour les requêtes et les tokens, mise en attente avant d'atteindre la limite `rpm` / `tpm` la plus permissive.
-- Gestion des 429 : lecture de `Retry-After` (en-tête conforme RFC 7231 plus regex de secours sur les corps qui mentionnent `"N requests per minute"`).
+- Commandes slash `/limits` (et alias `/quota`) qui affichent les rpm / rpd / tpm / tpd par routeur sous forme de tableau Markdown, ainsi que le palier documenté EXP / PROD du modèle actif quand il est connu.
+- Table statique `DOCUMENTED_MODEL_LIMITS` (`quota.py`) qui consigne les paliers Albert publiés sur https://albert.sites.beta.gouv.fr/prices/ pour les modèles `gpt-oss-120b`, `Qwen3-Coder-30B`, `mistral-small-3.2-24b` et `ministral-3-8b`. Permet de comparer le compte courant aux paliers documentés sans appel API supplémentaire.
+- Commande slash `/rpm` : jauge en direct de la consommation RPM et TPM du modèle actif sur la fenêtre glissante de 60 s, avec barre de progression `[###···]`, débounce courant, éventuel `Retry-After` actif et indication de la source de la limite (`documented EXP tier` ou `max across routers`).
+- Limiteur côté client adaptatif (`albert_code/core/llm/throttling.py`) : fenêtres glissantes de 60 s pour les requêtes et les tokens, mise en attente avant d'atteindre la limite `rpm` / `tpm` la plus permissive. Pour les modèles présents dans la table documentée, le throttler utilise désormais la limite EXP propre au modèle plutôt que le maximum compte-tout-routeur, ce qui évite par exemple de prendre 500 rpm (routeur embeddings) pour un modèle de chat à 50 rpm.
+- Débounce global pré-appel : un délai minimum `60 / rpm + 0,05 s` est imposé entre deux appels HTTP, en plus de la fenêtre glissante. Inspiré du `_wait_for_slot` du fork [AlbertCode](https://github.com/XenocodeRCE/AlbertCode) de Simon Roux.
+- Détection des 429 terminaux (quota journalier `rpd` ou `tpd` épuisé, motif `per day` dans le corps de réponse) : nouvelle exception `TerminalRateLimitError` levée par `_handle_429`, qui contourne `async_retry` et fait remonter immédiatement l'erreur au lieu de gaspiller deux retries supplémentaires sur un quota qui ne se rétablira qu'au reset de minuit UTC.
+- Coupure des retries 429 quand l'auto-fallback est armé : `Throttler.is_fallback_trigger_reached(model_alias)` (getter pur) permet à `_handle_429` de lever `TerminalRateLimitError(reason="fallback-armed")` dès que le seuil de bascule est atteint, plutôt que de laisser `async_retry` consommer un troisième essai sur le modèle primaire.
+- Persistance du dernier 429 daily-quota dans `~/.albert-code/throttle_state.json` (module `albert_code/core/llm/quota_state.py`). Au prochain démarrage, le bandeau d'accueil avertit que le modèle concerné est probablement encore saturé jusqu'au reset UTC suivant.
+- Avertissement de quota au démarrage de la TUI : combine la persistance ci-dessus et une estimation en direct calculée à partir de `GET /v1/me/usage` (somme des `prompt_tokens` du jour pour le modèle actif, comparée au `tpd` documenté). Seuils d'alerte à 80 % et 95 %.
 - Auto-fallback sur 429 répétés : après 2 réponses 429 consécutives sur un modèle, l'agent bascule sur son `ModelConfig.fallback_model` pendant 60 s puis restaure le modèle initial. Mapping Albert par défaut : `albert-code` -> `albert-large`.
 - Commande slash `/fallback` pour activer ou désactiver la stratégie d'auto-fallback (clé de configuration `auto_fallback_enabled`).
 - Toasts d'interface lors des transitions d'auto-fallback (activation, restauration).
@@ -27,12 +33,17 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) et le pr
 - `textual` épinglé en `>=7.4.0,<8.1` pour conserver le thème `textual-ansi` (renommé en `ansi-dark` en amont à partir de la 8.1).
 - `OpenAIAdapter.parse_response` ne tente plus l'extraction XML sur les chunks de streaming ; le parser incrémental les prend en charge.
 - Les `tool_calls` natifs non-streamés renvoyés sans `index` (Albert / vLLM) sont post-traités pour recevoir un index séquentiel, ce qui corrige `Tool call chunk missing index` lors de l'accumulation.
-- Le message d'erreur de rate limit dans l'interface ne référence plus le plan "Pro" de Mistral ; il pointe vers `/limits`.
+- Le message d'erreur de rate limit dans l'interface affiche maintenant le `detail` brut renvoyé par Albert (par exemple `2460000 input tokens per day exceeded`) et distingue visuellement les 429 transitoires des quotas journaliers épuisés (avec recommandation explicite de changer de modèle via `/config`).
+- `Throttler.usage_snapshot()` renvoie désormais une dataclass typée `UsageSnapshot` plutôt qu'un dictionnaire, pour fiabiliser la consommation par la jauge `/rpm`.
+- L'auto-continue est désactivé quand le modèle renvoie une réponse vide (pas de contenu, pas d'appel d'outil) : retenter immédiatement gaspillait un appel pleine-conversation sans chance de produire un résultat différent.
+- Bandeau d'accueil de la TUI : le bloc d'informations à droite est aligné sur la ligne de pied du logo (baseline) au lieu d'être centré verticalement.
 
 ### Corrigé
 
 - Parsing de `/v1/me/info` : `id` peut être renvoyé comme entier par Albert ; converti en chaîne via un `field_validator` Pydantic. `extra="ignore"` permet au modèle d'accepter tout champ supplémentaire sans casser.
 - `get_active_model()` résout désormais par alias et tombe en repli sur la recherche par `name`, ce qui permet aux configurations qui stockent l'identifiant complet du modèle dans `active_model` d'être résolues correctement.
+- Le corps des réponses 429 est maintenant journalisé dans `~/.albert-code/logs/albert-code.log`, ce qui permet d'identifier rétroactivement quel quota précis a déclenché un blocage.
+- Réinitialisation des throttlers entre les tests (`tests/conftest.py`) pour éviter qu'un compteur 429 d'un test précédent ne contamine le suivant.
 
 ## [2.3.0] - 2026-02-27
 

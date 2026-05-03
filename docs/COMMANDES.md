@@ -52,7 +52,8 @@ Tapées dans le champ de saisie sous la forme `/<nom>`. Définies dans `albert_c
 | `/exit` | - | Quitte l'application. |
 | `/terminal-setup` | - | Configure `Shift+Enter` pour insérer un saut de ligne. |
 | `/status` | - | Affiche les statistiques de l'agent. |
-| `/limits` | `/quota` | Affiche les quotas Albert API (rpm, rpd, tpm, tpd). |
+| `/limits` | `/quota` | Affiche les quotas Albert API (rpm, rpd, tpm, tpd) renvoyés par `/v1/me/info`, et le palier documenté EXP / PROD du modèle actif. |
+| `/rpm` | - | Jauge en direct de la consommation RPM et TPM du modèle actif sur la fenêtre glissante de 60 s, avec barre de progression, débounce courant et éventuel `Retry-After` actif. |
 | `/fallback` | - | Bascule l'auto-fallback en cas de 429 répétés. |
 | `/teleport` | - | Téléporte la session vers Vibe Nuage. |
 | `/proxy-setup` | - | Configure le proxy et le certificat SSL. |
