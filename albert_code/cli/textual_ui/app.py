@@ -722,27 +722,11 @@ class VibeApp(App):  # noqa: PLR0904
             if self.event_handler:
                 self.event_handler.stop_current_tool_call(success=False)
 
-            message = str(e)
-            if isinstance(e, RateLimitError):
-                lines: list[str] = []
-                if e.is_terminal:
-                    lines.append(
-                        f"Daily quota exhausted on `{e.model}` ({e.provider})."
-                    )
-                else:
-                    lines.append(
-                        f"Rate limit exceeded on `{e.model}` ({e.provider})."
-                    )
-                if e.detail:
-                    lines.append(f"Server: {e.detail}")
-                if e.is_terminal:
-                    lines.append(
-                        "This won't recover by retrying. Try a different model "
-                        "(`/config`) or wait until the daily counter resets."
-                    )
-                else:
-                    lines.append("Use /limits to inspect your Albert quotas.")
-                message = " ".join(lines)
+            message = (
+                _format_rate_limit_message(e)
+                if isinstance(e, RateLimitError)
+                else str(e)
+            )
 
             await self._mount_and_scroll(
                 ErrorMessage(message, collapsed=self._tools_collapsed)
@@ -1023,9 +1007,7 @@ class VibeApp(App):  # noqa: PLR0904
         documented = documented_limits_for(active_model.name)
         if documented is not None:
             lines.append("")
-            lines.append(
-                f"### Documented tier for `{active_model.name}`"
-            )
+            lines.append(f"### Documented tier for `{active_model.name}`")
             lines.append("")
             lines.append("| Tier | rpm | rpd | tpm | tpd |")
             lines.append("|:---|---:|---:|---:|---:|")
@@ -1038,9 +1020,7 @@ class VibeApp(App):  # noqa: PLR0904
                     f"| {_format_doc_value(tier.tpd)} |"
                 )
             lines.append("")
-            lines.append(
-                "_Source: https://albert.sites.beta.gouv.fr/prices/_"
-            )
+            lines.append("_Source: https://albert.sites.beta.gouv.fr/prices/_")
 
         await self._mount_and_scroll(UserCommandMessage("\n".join(lines)))
 
@@ -1066,35 +1046,26 @@ class VibeApp(App):  # noqa: PLR0904
         await throttler.acquire(model_name=active_model.name)
         snap = throttler.usage_snapshot(model_name=active_model.name)
 
-        rpm_used = int(snap["rpm_used"] or 0)
-        rpm_limit = snap["rpm_limit"]
-        tpm_used = int(snap["tpm_used"] or 0)
-        tpm_limit = snap["tpm_limit"]
-        debounce = float(snap["debounce_seconds"] or 0.0)
-        blocked = float(snap["blocked_for"] or 0.0)
-        window = int(snap["window_seconds"] or 60)
-        limit_source = str(snap.get("limit_source") or "unknown")
-
         lines: list[str] = [
             "## RPM gauge",
             "",
             f"- **Model**: `{active_model.name}`",
-            f"- **Window**: rolling {window}s",
-            f"- **Limit source**: {limit_source}",
+            f"- **Window**: rolling {snap.window_seconds}s",
+            f"- **Limit source**: {snap.limit_source}",
             "",
-            f"- **Requests**: {_format_gauge(rpm_used, rpm_limit)}",
-            f"- **Tokens**: {_format_gauge(tpm_used, tpm_limit)}",
+            f"- **Requests**: {_format_gauge(snap.rpm_used, snap.rpm_limit)}",
+            f"- **Tokens**: {_format_gauge(snap.tpm_used, snap.tpm_limit)}",
         ]
-        if debounce > 0.0:
+        if snap.debounce_seconds > 0.0:
             lines.append(
-                f"- **Debounce**: {debounce:.2f}s minimum between calls"
+                f"- **Debounce**: {snap.debounce_seconds:.2f}s minimum between calls"
             )
-        if blocked > 0.0:
+        if snap.blocked_for > 0.0:
             lines.append(
-                f"- **Backoff active**: {blocked:.1f}s remaining (Retry-After)"
+                f"- **Backoff active**: {snap.blocked_for:.1f}s remaining (Retry-After)"
             )
 
-        if rpm_limit is None:
+        if snap.rpm_limit is None:
             lines.append("")
             lines.append(
                 "_Note: no documented tier for this model and no live "
@@ -1665,6 +1636,9 @@ class VibeApp(App):  # noqa: PLR0904
             )
             await self._mount_and_scroll(WarningMessage(warning, show_border=False))
 
+    _QUOTA_WARN_PCT = 80.0
+    _QUOTA_HARD_WARN_PCT = 95.0
+
     async def _check_quota_warning(self) -> None:
         """Combine persisted 429 (B) and live /me/usage estimation (A)."""
         from albert_code.core.llm.quota import (
@@ -1710,13 +1684,13 @@ class VibeApp(App):  # noqa: PLR0904
             used_today = sum_prompt_tokens_today(usage, active_model.name)
             tpd_limit = documented.exp.tpd
             pct = used_today / tpd_limit * 100.0 if tpd_limit > 0 else 0.0
-            if pct >= 95.0:
+            if pct >= self._QUOTA_HARD_WARN_PCT:
                 warnings.append(
                     f"TPD usage on `{active_model.name}` is at "
                     f"{used_today:,}/{tpd_limit:,} ({pct:.0f}%) for today "
                     f"(EXP tier). Likely to 429 on the next call."
                 )
-            elif pct >= 80.0:
+            elif pct >= self._QUOTA_WARN_PCT:
                 warnings.append(
                     f"TPD usage on `{active_model.name}` is at "
                     f"{used_today:,}/{tpd_limit:,} ({pct:.0f}%) for today "
@@ -1894,6 +1868,20 @@ def _format_quota_value(vals: dict[str, int | None], key: str) -> str:
 
 def _format_doc_value(value: int | None) -> str:
     return "∞" if value is None else f"{value:,}"
+
+
+def _format_rate_limit_message(e: RateLimitError) -> str:
+    if e.is_terminal:
+        head = f"Daily quota exhausted on `{e.model}` ({e.provider})."
+        tail = (
+            "This won't recover by retrying. Try a different model "
+            "(`/config`) or wait until the daily counter resets."
+        )
+    else:
+        head = f"Rate limit exceeded on `{e.model}` ({e.provider})."
+        tail = "Use /limits to inspect your Albert quotas."
+    detail = f"Server: {e.detail}" if e.detail else ""
+    return " ".join(part for part in (head, detail, tail) if part)
 
 
 def _format_gauge(used: int, limit: int | None, *, width: int = 20) -> str:

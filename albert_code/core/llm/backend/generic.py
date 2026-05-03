@@ -22,11 +22,11 @@ from albert_code.core.llm.backend.anthropic import AnthropicAdapter
 from albert_code.core.llm.backend.base import APIAdapter, PreparedRequest
 from albert_code.core.llm.backend.vertex import VertexAnthropicAdapter
 from albert_code.core.llm.exceptions import BackendErrorBuilder, TerminalRateLimitError
+from albert_code.core.llm.message_utils import merge_consecutive_user_messages
 from albert_code.core.llm.quota_state import (
     clear_terminal_quota_event_for_model,
     save_terminal_quota_event,
 )
-from albert_code.core.llm.message_utils import merge_consecutive_user_messages
 from albert_code.core.llm.throttling import get_throttler
 from albert_code.core.types import (
     AvailableTool,
@@ -579,11 +579,7 @@ class GenericBackend:
 
         try:
             res_data, _ = await self._make_request(
-                url,
-                req.body,
-                headers,
-                model_alias=model.alias,
-                model_name=model.name,
+                url, req.body, headers, model_alias=model.alias, model_name=model.name
             )
             chunk = adapter.parse_response(res_data, self._provider)
             if chunk.usage is not None:
@@ -706,11 +702,7 @@ class GenericBackend:
 
         try:
             async for res_data in self._make_streaming_request(
-                url,
-                req.body,
-                headers,
-                model_alias=model.alias,
-                model_name=model.name,
+                url, req.body, headers, model_alias=model.alias, model_name=model.name
             ):
                 chunk = adapter.parse_response(res_data, self._provider)
                 if chunk.usage is not None:
@@ -790,9 +782,7 @@ class GenericBackend:
     ) -> HTTPResponse:
         client = self._get_client()
         response = await client.post(url, content=data, headers=headers)
-        await self._handle_429(
-            response, model_alias=model_alias, model_name=model_name
-        )
+        await self._handle_429(response, model_alias=model_alias, model_name=model_name)
         response.raise_for_status()
 
         response_headers = dict(response.headers.items())
@@ -823,9 +813,7 @@ class GenericBackend:
         logger.warning("429 body: %s", body_text[:300] if body_text else "(empty)")
 
         if is_terminal_rate_limit(body_text):
-            get_throttler(self._provider).record_rate_limit(
-                model_alias=model_alias
-            )
+            get_throttler(self._provider).record_rate_limit(model_alias=model_alias)
             save_terminal_quota_event(
                 model_name=model_name or model_alias or "unknown",
                 reason="daily-quota",
@@ -851,8 +839,7 @@ class GenericBackend:
         # agent loop sees it now instead of burning the remaining retries.
         if throttler.is_fallback_trigger_reached(model_alias):
             logger.warning(
-                "Auto-fallback trigger reached for %s; aborting retries.",
-                model_alias,
+                "Auto-fallback trigger reached for %s; aborting retries.", model_alias
             )
             raise TerminalRateLimitError(
                 status=HTTP_TOO_MANY_REQUESTS,

@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 import logging
 import time
 from typing import TYPE_CHECKING
@@ -47,6 +48,20 @@ DEBOUNCE_EPSILON_SECONDS = 0.05
 # Auto-fallback parameters
 FALLBACK_TRIGGER_429_COUNT = 2  # consecutive 429 needed to switch
 FALLBACK_DURATION_SECONDS = 60.0  # how long the fallback stays in effect
+
+
+@dataclass(frozen=True)
+class UsageSnapshot:
+    provider: str
+    model_name: str | None
+    window_seconds: int
+    rpm_limit: int | None
+    rpm_used: int
+    tpm_limit: int | None
+    tpm_used: int
+    debounce_seconds: float
+    blocked_for: float
+    limit_source: str
 
 
 class RollingWindow:
@@ -228,7 +243,7 @@ class Throttler:
             self._consecutive_429_per_model.get(model_alias, 0) + 1
         )
 
-    def usage_snapshot(self, *, model_name: str | None = None) -> dict[str, object]:
+    def usage_snapshot(self, *, model_name: str | None = None) -> UsageSnapshot:
         """Live counters for the /rpm slash command.
 
         When `model_name` matches a documented tier, returns that model's EXP
@@ -237,21 +252,23 @@ class Throttler:
         embeddings router that don't apply to chat models).
         """
         rpm, tpm = self._effective_limits(model_name)
-        source = "documented EXP tier" if (
-            model_name and documented_limits_for(model_name) is not None
-        ) else "max across routers"
-        return {
-            "provider": self._provider.name,
-            "model_name": model_name,
-            "window_seconds": int(WINDOW_SECONDS),
-            "rpm_limit": rpm,
-            "rpm_used": self._requests.total(),
-            "tpm_limit": tpm,
-            "tpm_used": self._tokens.total(),
-            "debounce_seconds": self._debounce_seconds(rpm),
-            "blocked_for": max(0.0, self._blocked_until - self._clock()),
-            "limit_source": source,
-        }
+        source = (
+            "documented EXP tier"
+            if (model_name and documented_limits_for(model_name) is not None)
+            else "max across routers"
+        )
+        return UsageSnapshot(
+            provider=self._provider.name,
+            model_name=model_name,
+            window_seconds=int(WINDOW_SECONDS),
+            rpm_limit=rpm,
+            rpm_used=self._requests.total(),
+            tpm_limit=tpm,
+            tpm_used=self._tokens.total(),
+            debounce_seconds=self._debounce_seconds(rpm),
+            blocked_for=max(0.0, self._blocked_until - self._clock()),
+            limit_source=source,
+        )
 
     def record_success(self, *, model_alias: str | None = None) -> None:
         """Reset the consecutive-429 counter after a successful call."""

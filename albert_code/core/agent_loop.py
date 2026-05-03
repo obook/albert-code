@@ -5,8 +5,8 @@ from collections.abc import AsyncGenerator, Callable, Generator
 from enum import StrEnum, auto
 from http import HTTPStatus
 import json
-import re
 from pathlib import Path
+import re
 from threading import Thread
 import time
 from typing import TYPE_CHECKING, Any, Literal, cast

@@ -20,3 +20,7 @@ iterm = "iterm"
 ITERM = "ITERM"
 asend = "asend"
 ype = "ype"
+# French words shared with English false-positives (kept in commit messages,
+# .gitignore, code comments). The typos hook reverts these otherwise.
+projet = "projet"
+Environnements = "Environnements"
