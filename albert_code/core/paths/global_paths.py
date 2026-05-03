@@ -38,5 +38,8 @@ TRUSTED_FOLDERS_FILE = GlobalPath(
 )
 LOG_DIR = GlobalPath(lambda: ALBERT_CODE_HOME.path / "logs")
 LOG_FILE = GlobalPath(lambda: ALBERT_CODE_HOME.path / "logs" / "albert-code.log")
+THROTTLE_STATE_FILE = GlobalPath(
+    lambda: ALBERT_CODE_HOME.path / "throttle_state.json"
+)
 
 DEFAULT_TOOL_DIR = GlobalPath(lambda: ALBERT_CODE_ROOT / "core" / "tools" / "builtins")

@@ -62,6 +62,67 @@ def is_albert_provider(provider: ProviderConfig) -> bool:
     return provider.name == ALBERT_PROVIDER_NAME
 
 
+async def fetch_albert_usage(
+    provider: ProviderConfig, *, timeout: float = 10.0
+) -> list[dict[str, object]] | None:
+    """Fetch /v1/me/usage. Returns the list of usage events, or None on failure.
+
+    Albert returns a list of recent calls with their token counts; the
+    payload schema is `{object: "list", data: [...]}`. We just hand back
+    `data` as a list of dicts and let callers slice what they need.
+    """
+    if _check_albert_preconditions(provider) is not None:
+        return None
+    api_key = os.getenv(provider.api_key_env_var) or ""
+    url = f"{provider.api_base.rstrip('/')}/me/usage"
+    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+    except httpx.HTTPError as exc:
+        logger.debug("Albert /me/usage fetch failed: %s", exc)
+        return None
+    except ValueError as exc:
+        logger.debug("Albert /me/usage returned non-JSON: %s", exc)
+        return None
+    data = payload.get("data") if isinstance(payload, dict) else None
+    return data if isinstance(data, list) else None
+
+
+def sum_prompt_tokens_today(
+    usage_events: list[dict[str, object]], model_name: str
+) -> int:
+    """Sum prompt_tokens for `model_name` calls that happened today (UTC).
+
+    Daily quotas reset at midnight UTC, so any event before today's
+    00:00 UTC doesn't consume the running counter.
+    """
+    import datetime as dt
+
+    midnight_utc = (
+        dt.datetime.now(dt.UTC)
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .timestamp()
+    )
+    total = 0
+    for event in usage_events:
+        if not isinstance(event, dict):
+            continue
+        if event.get("model") != model_name:
+            continue
+        created = event.get("created")
+        if not isinstance(created, (int, float)) or created < midnight_utc:
+            continue
+        usage = event.get("usage") or {}
+        if isinstance(usage, dict):
+            tokens = usage.get("prompt_tokens", 0)
+            if isinstance(tokens, (int, float)):
+                total += int(tokens)
+    return total
+
+
 async def fetch_albert_quotas_detailed(
     provider: ProviderConfig, *, timeout: float = 10.0
 ) -> QuotaFetchResult:

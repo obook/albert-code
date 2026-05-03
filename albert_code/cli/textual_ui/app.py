@@ -330,6 +330,7 @@ class VibeApp(App):  # noqa: PLR0904
         await self._show_dangerous_directory_warning()
         await self._resume_history_from_messages()
         await self._check_and_show_whats_new()
+        self.run_worker(self._check_quota_warning(), exclusive=False)
         self._schedule_update_notification()
         self.agent_loop.emit_new_session_telemetry()
 
@@ -1663,6 +1664,70 @@ class VibeApp(App):  # noqa: PLR0904
                 f"⚠ WARNING: {reason}\n\nRunning in this location is not recommended."
             )
             await self._mount_and_scroll(WarningMessage(warning, show_border=False))
+
+    async def _check_quota_warning(self) -> None:
+        """Combine persisted 429 (B) and live /me/usage estimation (A)."""
+        from albert_code.core.llm.quota import (
+            documented_limits_for,
+            fetch_albert_usage,
+            is_albert_provider,
+            sum_prompt_tokens_today,
+        )
+        from albert_code.core.llm.quota_state import (
+            is_event_still_relevant,
+            load_terminal_quota_event,
+        )
+
+        active_model = self.config.get_active_model()
+        provider = self.config.get_provider_for_model(active_model)
+        if not is_albert_provider(provider):
+            return
+
+        warnings: list[str] = []
+
+        # B - persisted terminal 429
+        event = load_terminal_quota_event()
+        if event is not None and is_event_still_relevant(event):
+            if event.model_name == active_model.name:
+                ts = event.recorded_at.strftime("%Y-%m-%d %H:%M UTC")
+                warnings.append(
+                    f"Daily quota was exhausted on `{event.model_name}` "
+                    f"at {ts}. Resets at midnight UTC. "
+                    f"Server: {event.body_excerpt}"
+                )
+            else:
+                ts = event.recorded_at.strftime("%H:%M UTC")
+                warnings.append(
+                    f"Earlier daily-quota 429 recorded on "
+                    f"`{event.model_name}` at {ts} (active model is "
+                    f"`{active_model.name}`, may be unaffected)."
+                )
+
+        # A - live /me/usage estimation
+        usage = await fetch_albert_usage(provider)
+        documented = documented_limits_for(active_model.name)
+        if usage is not None and documented is not None and documented.exp.tpd:
+            used_today = sum_prompt_tokens_today(usage, active_model.name)
+            tpd_limit = documented.exp.tpd
+            pct = used_today / tpd_limit * 100.0 if tpd_limit > 0 else 0.0
+            if pct >= 95.0:
+                warnings.append(
+                    f"TPD usage on `{active_model.name}` is at "
+                    f"{used_today:,}/{tpd_limit:,} ({pct:.0f}%) for today "
+                    f"(EXP tier). Likely to 429 on the next call."
+                )
+            elif pct >= 80.0:
+                warnings.append(
+                    f"TPD usage on `{active_model.name}` is at "
+                    f"{used_today:,}/{tpd_limit:,} ({pct:.0f}%) for today "
+                    f"(EXP tier). Approaching the daily ceiling."
+                )
+
+        if not warnings:
+            return
+        body = "⚠ Quota check\n\n" + "\n\n".join(f"- {line}" for line in warnings)
+        body += "\n\nUse `/limits` for the full picture or `/config` to switch model."
+        await self._mount_and_scroll(WarningMessage(body, show_border=False))
 
     async def _check_and_show_whats_new(self) -> None:
         if self._update_cache_repository is None:

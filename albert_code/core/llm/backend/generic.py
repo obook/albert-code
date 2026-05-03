@@ -22,6 +22,10 @@ from albert_code.core.llm.backend.anthropic import AnthropicAdapter
 from albert_code.core.llm.backend.base import APIAdapter, PreparedRequest
 from albert_code.core.llm.backend.vertex import VertexAnthropicAdapter
 from albert_code.core.llm.exceptions import BackendErrorBuilder, TerminalRateLimitError
+from albert_code.core.llm.quota_state import (
+    clear_terminal_quota_event_for_model,
+    save_terminal_quota_event,
+)
 from albert_code.core.llm.message_utils import merge_consecutive_user_messages
 from albert_code.core.llm.throttling import get_throttler
 from albert_code.core.types import (
@@ -575,7 +579,11 @@ class GenericBackend:
 
         try:
             res_data, _ = await self._make_request(
-                url, req.body, headers, model_alias=model.alias
+                url,
+                req.body,
+                headers,
+                model_alias=model.alias,
+                model_name=model.name,
             )
             chunk = adapter.parse_response(res_data, self._provider)
             if chunk.usage is not None:
@@ -586,6 +594,7 @@ class GenericBackend:
             else:
                 throttler.record_request()
             throttler.record_success(model_alias=model.alias)
+            clear_terminal_quota_event_for_model(model.name)
             return chunk
 
         except TerminalRateLimitError as e:
@@ -697,7 +706,11 @@ class GenericBackend:
 
         try:
             async for res_data in self._make_streaming_request(
-                url, req.body, headers, model_alias=model.alias
+                url,
+                req.body,
+                headers,
+                model_alias=model.alias,
+                model_name=model.name,
             ):
                 chunk = adapter.parse_response(res_data, self._provider)
                 if chunk.usage is not None:
@@ -725,6 +738,7 @@ class GenericBackend:
                 completion_tokens=last_usage.completion_tokens,
             )
             throttler.record_success(model_alias=model.alias)
+            clear_terminal_quota_event_for_model(model.name)
 
         except TerminalRateLimitError as e:
             raise BackendErrorBuilder.build_terminal_rate_limit(
@@ -772,10 +786,13 @@ class GenericBackend:
         data: bytes,
         headers: dict[str, str],
         model_alias: str | None = None,
+        model_name: str | None = None,
     ) -> HTTPResponse:
         client = self._get_client()
         response = await client.post(url, content=data, headers=headers)
-        await self._handle_429(response, model_alias=model_alias)
+        await self._handle_429(
+            response, model_alias=model_alias, model_name=model_name
+        )
         response.raise_for_status()
 
         response_headers = dict(response.headers.items())
@@ -783,7 +800,11 @@ class GenericBackend:
         return self.HTTPResponse(response_body, response_headers)
 
     async def _handle_429(
-        self, response: httpx.Response, *, model_alias: str | None = None
+        self,
+        response: httpx.Response,
+        *,
+        model_alias: str | None = None,
+        model_name: str | None = None,
     ) -> None:
         """If the upstream returned 429, log it, sleep Retry-After, then let
         async_retry retry. Also records the event on the throttler so it can
@@ -804,6 +825,11 @@ class GenericBackend:
         if is_terminal_rate_limit(body_text):
             get_throttler(self._provider).record_rate_limit(
                 model_alias=model_alias
+            )
+            save_terminal_quota_event(
+                model_name=model_name or model_alias or "unknown",
+                reason="daily-quota",
+                body_text=body_text,
             )
             raise TerminalRateLimitError(
                 status=HTTP_TOO_MANY_REQUESTS,
@@ -847,6 +873,7 @@ class GenericBackend:
         data: bytes,
         headers: dict[str, str],
         model_alias: str | None = None,
+        model_name: str | None = None,
     ) -> AsyncGenerator[dict[str, Any]]:
         client = self._get_client()
         async with client.stream(
@@ -854,7 +881,9 @@ class GenericBackend:
         ) as response:
             if not response.is_success:
                 await response.aread()
-            await self._handle_429(response, model_alias=model_alias)
+            await self._handle_429(
+                response, model_alias=model_alias, model_name=model_name
+            )
             response.raise_for_status()
             async for line in response.aiter_lines():
                 if line.strip() == "":
