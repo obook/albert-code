@@ -925,7 +925,6 @@ ContextProgress {
 }
 
 #banner-container {
-    align: left middle;
     padding: 0 1 0 0;
     width: auto;
 }
@@ -937,8 +936,7 @@ ContextProgress {
 #banner-info {
     width: auto;
     height: auto;
-    margin-left: 2;
-    content-align: left middle;
+    margin: 3 0 0 2;
 }
 
 .banner-line {
