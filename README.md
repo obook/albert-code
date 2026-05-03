@@ -66,11 +66,33 @@ Sous Windows, utiliser `albert-code.bat` à la place de `albert-code.sh`.
 > Lancer `.\albert-code.bat` sans argument affiche un menu interactif :
 >
 > 1. **Lancer Albert Code** : démarre l'application normalement.
-> 2. **Installer la commande dans le PATH utilisateur** : ajoute le dossier d'Albert Code au `PATH` afin que `albert-code` soit disponible depuis n'importe quel répertoire.
-> 3. **Désinstaller la commande du PATH utilisateur** : retire l'entrée du `PATH` (le dossier et l'application restent en place).
+> 2. **Installer la commande dans le PATH utilisateur** : ajoute le dossier d'Albert Code au `PATH` afin que `albert-code` soit disponible depuis n'importe quel répertoire (équivalent CLI : `albert-code.bat --install`).
+> 3. **Désinstaller la commande du PATH utilisateur** : retire l'entrée du `PATH` (équivalent CLI : `albert-code.bat --uninstall`). Le dossier et l'application restent en place.
 > 4. **Quitter** : ferme le menu sans rien lancer.
 >
 > Avec des arguments (par exemple `albert-code.bat -p "..."` ou `albert-code.bat --version`), le menu est court-circuité et la commande s'exécute directement.
+
+### Rendre la commande disponible globalement (optionnel)
+
+Pour pouvoir taper `albert-code` depuis n'importe quel dossier au lieu de `/chemin/vers/albert-code/albert-code.sh`, les deux lanceurs proposent une sous-commande d'installation. Le dossier de travail courant est préservé : Albert Code s'exécute toujours dans le répertoire d'où la commande est appelée.
+
+**Linux / Mac** (crée un lien symbolique dans `~/.local/bin/`) :
+
+```bash
+./albert-code.sh --install      # installe le lien
+./albert-code.sh --uninstall    # retire le lien
+```
+
+Si `~/.local/bin` n'est pas dans le `PATH`, le script l'indique et propose la ligne à ajouter au `~/.bashrc` ou `~/.zshrc`.
+
+**Windows** (ajoute le dossier au `PATH` utilisateur) :
+
+```powershell
+.\albert-code.bat --install      # ajoute le dossier au PATH
+.\albert-code.bat --uninstall    # retire le dossier du PATH
+```
+
+Sous Windows, ces sous-commandes font la même chose que les options 2 et 3 du menu interactif. Ouvrir une nouvelle fenêtre Windows Terminal après l'installation pour que la modification du `PATH` soit prise en compte.
 
 ## 3 - Utilisation
 

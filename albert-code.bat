@@ -1,7 +1,13 @@
 @echo off
 REM Lanceur albert-code -- Windows
+REM
 REM Sans argument : affiche un menu (lancer / installer / desinstaller / quitter).
 REM Avec arguments : execute albert-code en mode direct.
+REM
+REM Sous-commandes (equivalent CLI des options du menu) :
+REM   albert-code.bat --install     -> ajoute le dossier au PATH utilisateur
+REM   albert-code.bat --uninstall   -> retire le dossier du PATH utilisateur
+REM
 REM Usage : albert-code.bat [options] [PROMPT]
 
 REM %~dp0 = dossier du script (d=drive, p=path, 0=argument 0)
@@ -9,6 +15,11 @@ set SCRIPT_DIR=%~dp0
 REM Supprimer le \ final pour eviter les doubles \ dans les chemins
 if "%SCRIPT_DIR:~-1%"=="\" set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
 set VENV_DIR=%SCRIPT_DIR%\.venv
+
+REM Sous-commandes d'installation / desinstallation en mode CLI (sortie immediate).
+REM A traiter avant le check generique "if not arg empty" pour ne pas tomber dans :prepare.
+if /i "%~1"=="--install" goto :cli_install_path
+if /i "%~1"=="--uninstall" goto :cli_uninstall_path
 
 REM Si des arguments sont fournis, mode direct (pas de menu, pas de check console)
 if not "%~1"=="" goto :prepare
@@ -104,6 +115,21 @@ powershell -NoProfile -Command "$dir = '%SCRIPT_DIR%'; $current = [Environment]:
 echo.
 pause
 goto :menu
+
+REM Variantes CLI : meme action que les options du menu, mais sortie immediate
+REM (pas de retour vers le menu, pas de pause finale).
+:cli_install_path
+echo Ajout de "%SCRIPT_DIR%" au PATH utilisateur...
+powershell -NoProfile -Command "$dir = '%SCRIPT_DIR%'; $current = [Environment]::GetEnvironmentVariable('Path', 'User'); if ($current -notlike ('*' + $dir + '*')) { if ([string]::IsNullOrEmpty($current)) { $new = $dir } else { $new = $current.TrimEnd(';') + ';' + $dir }; [Environment]::SetEnvironmentVariable('Path', $new, 'User'); Write-Host 'Ajoute.' } else { Write-Host 'Deja present, aucun changement.' }"
+echo.
+echo Tu peux maintenant lancer "albert-code" depuis n'importe quel dossier.
+echo Ouvrir une nouvelle fenetre Windows Terminal pour que le PATH soit pris en compte.
+exit /b 0
+
+:cli_uninstall_path
+echo Retrait de "%SCRIPT_DIR%" du PATH utilisateur...
+powershell -NoProfile -Command "$dir = '%SCRIPT_DIR%'; $current = [Environment]::GetEnvironmentVariable('Path', 'User'); if ([string]::IsNullOrEmpty($current)) { Write-Host 'PATH utilisateur vide, rien a faire.' } else { $entries = $current -split ';' | Where-Object { $_ -ne $dir -and $_ -ne '' }; $new = $entries -join ';'; [Environment]::SetEnvironmentVariable('Path', $new, 'User'); Write-Host 'Retire.' }"
+exit /b 0
 
 :prepare
 REM Verifier que python est disponible
