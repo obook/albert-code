@@ -44,6 +44,13 @@ def get_base_config() -> dict[str, Any]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_throttlers() -> None:
+    from albert_code.core.llm.throttling import reset_throttlers_for_tests
+
+    reset_throttlers_for_tests()
+
+
+@pytest.fixture(autouse=True)
 def tmp_working_directory(
     monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
 ) -> Path:

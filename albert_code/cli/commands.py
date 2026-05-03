@@ -67,6 +67,11 @@ class CommandRegistry:
                 description="Display Albert API quotas (rpm/rpd/tpm/tpd)",
                 handler="_show_limits",
             ),
+            "rpm": Command(
+                aliases=frozenset(["/rpm"]),
+                description="Live RPM/TPM gauge for the active model",
+                handler="_show_rpm",
+            ),
             "fallback": Command(
                 aliases=frozenset(["/fallback"]),
                 description="Toggle auto-fallback on repeated 429",

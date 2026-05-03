@@ -723,10 +723,25 @@ class VibeApp(App):  # noqa: PLR0904
 
             message = str(e)
             if isinstance(e, RateLimitError):
-                message = (
-                    "Rate limits exceeded. Please wait a moment before trying again. "
-                    "Use /limits to inspect your Albert quotas."
-                )
+                lines: list[str] = []
+                if e.is_terminal:
+                    lines.append(
+                        f"Daily quota exhausted on `{e.model}` ({e.provider})."
+                    )
+                else:
+                    lines.append(
+                        f"Rate limit exceeded on `{e.model}` ({e.provider})."
+                    )
+                if e.detail:
+                    lines.append(f"Server: {e.detail}")
+                if e.is_terminal:
+                    lines.append(
+                        "This won't recover by retrying. Try a different model "
+                        "(`/config`) or wait until the daily counter resets."
+                    )
+                else:
+                    lines.append("Use /limits to inspect your Albert quotas.")
+                message = " ".join(lines)
 
             await self._mount_and_scroll(
                 ErrorMessage(message, collapsed=self._tools_collapsed)
@@ -944,6 +959,7 @@ class VibeApp(App):  # noqa: PLR0904
     async def _show_limits(self) -> None:
         """Display Albert API quotas (rpm/rpd/tpm/tpd) for the active provider."""
         from albert_code.core.llm.quota import (
+            documented_limits_for,
             fetch_albert_quotas_detailed,
             group_limits_by_router,
             is_albert_provider,
@@ -985,7 +1001,7 @@ class VibeApp(App):  # noqa: PLR0904
         if not info.limits:
             lines.append("_No quota information returned._")
         else:
-            lines.append("### Limits per router")
+            lines.append("### Limits per router (live, /v1/me/info)")
             lines.append("")
             lines.append("| Router | rpm | rpd | tpm | tpd |")
             lines.append("|---:|---:|---:|---:|---:|")
@@ -997,6 +1013,92 @@ class VibeApp(App):  # noqa: PLR0904
                 tpm = _format_quota_value(vals, "tpm")
                 tpd = _format_quota_value(vals, "tpd")
                 lines.append(f"| {router_id} | {rpm} | {rpd} | {tpm} | {tpd} |")
+            lines.append("")
+            lines.append(
+                "_Albert does not expose the model -> router mapping; "
+                "compare with the documented tier below._"
+            )
+
+        documented = documented_limits_for(active_model.name)
+        if documented is not None:
+            lines.append("")
+            lines.append(
+                f"### Documented tier for `{active_model.name}`"
+            )
+            lines.append("")
+            lines.append("| Tier | rpm | rpd | tpm | tpd |")
+            lines.append("|:---|---:|---:|---:|---:|")
+            for label, tier in (("EXP", documented.exp), ("PROD", documented.prod)):
+                lines.append(
+                    f"| {label} "
+                    f"| {_format_doc_value(tier.rpm)} "
+                    f"| {_format_doc_value(tier.rpd)} "
+                    f"| {_format_doc_value(tier.tpm)} "
+                    f"| {_format_doc_value(tier.tpd)} |"
+                )
+            lines.append("")
+            lines.append(
+                "_Source: https://albert.sites.beta.gouv.fr/prices/_"
+            )
+
+        await self._mount_and_scroll(UserCommandMessage("\n".join(lines)))
+
+    async def _show_rpm(self) -> None:
+        """Live RPM/TPM gauge for the active model (rolling 60s window)."""
+        from albert_code.core.llm.quota import is_albert_provider
+        from albert_code.core.llm.throttling import get_throttler
+
+        active_model = self.config.get_active_model()
+        provider = self.config.get_provider_for_model(active_model)
+
+        if not is_albert_provider(provider):
+            await self._mount_and_scroll(
+                UserCommandMessage(
+                    f"## RPM gauge\n\nThe active provider `{provider.name}` "
+                    "is not Albert. The gauge is only meaningful for Albert."
+                )
+            )
+            return
+
+        throttler = get_throttler(provider)
+        # Make sure quotas are fetched at least once.
+        await throttler.acquire(model_name=active_model.name)
+        snap = throttler.usage_snapshot(model_name=active_model.name)
+
+        rpm_used = int(snap["rpm_used"] or 0)
+        rpm_limit = snap["rpm_limit"]
+        tpm_used = int(snap["tpm_used"] or 0)
+        tpm_limit = snap["tpm_limit"]
+        debounce = float(snap["debounce_seconds"] or 0.0)
+        blocked = float(snap["blocked_for"] or 0.0)
+        window = int(snap["window_seconds"] or 60)
+        limit_source = str(snap.get("limit_source") or "unknown")
+
+        lines: list[str] = [
+            "## RPM gauge",
+            "",
+            f"- **Model**: `{active_model.name}`",
+            f"- **Window**: rolling {window}s",
+            f"- **Limit source**: {limit_source}",
+            "",
+            f"- **Requests**: {_format_gauge(rpm_used, rpm_limit)}",
+            f"- **Tokens**: {_format_gauge(tpm_used, tpm_limit)}",
+        ]
+        if debounce > 0.0:
+            lines.append(
+                f"- **Debounce**: {debounce:.2f}s minimum between calls"
+            )
+        if blocked > 0.0:
+            lines.append(
+                f"- **Backoff active**: {blocked:.1f}s remaining (Retry-After)"
+            )
+
+        if rpm_limit is None:
+            lines.append("")
+            lines.append(
+                "_Note: no documented tier for this model and no live "
+                "limit available. See /limits for the raw per-router data._"
+            )
 
         await self._mount_and_scroll(UserCommandMessage("\n".join(lines)))
 
@@ -1723,6 +1825,20 @@ def _format_quota_value(vals: dict[str, int | None], key: str) -> str:
         return "?"
     value = vals[key]
     return "∞" if value is None else f"{value:,}"
+
+
+def _format_doc_value(value: int | None) -> str:
+    return "∞" if value is None else f"{value:,}"
+
+
+def _format_gauge(used: int, limit: int | None, *, width: int = 20) -> str:
+    """Format a numeric gauge as `used/limit (pct%) [###···]`."""
+    if limit is None or limit <= 0:
+        return f"{used:,} (limit unknown)"
+    pct = min(100.0, used / limit * 100.0)
+    filled = int(round(pct / 100.0 * width))
+    bar = "#" * filled + "·" * (width - filled)
+    return f"{used:,}/{limit:,} ({pct:.0f}%) `[{bar}]`"
 
 
 def _print_session_resume_message(session_id: str | None) -> None:

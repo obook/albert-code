@@ -121,3 +121,50 @@ def group_limits_by_router(
     for limit in limits:
         routers.setdefault(limit.router, {})[limit.type] = limit.value
     return routers
+
+
+class DocumentedTier(NamedTuple):
+    rpm: int | None
+    rpd: int | None
+    tpm: int | None
+    tpd: int | None
+
+
+class DocumentedLimits(NamedTuple):
+    exp: DocumentedTier
+    prod: DocumentedTier
+
+
+# Documented Albert tiers per model family. Hardcoded from the public docs
+# (https://albert.sites.beta.gouv.fr/prices/). Kept as a reference shown next
+# to the live /v1/me/info data: useful to know whether your account matches
+# EXP or PROD, and to spot discrepancies. None means "unlimited per docs".
+DOCUMENTED_MODEL_LIMITS: dict[str, DocumentedLimits] = {
+    "openai/gpt-oss-120b": DocumentedLimits(
+        exp=DocumentedTier(rpm=10, rpd=1_000, tpm=128_000, tpd=1_280_000),
+        prod=DocumentedTier(rpm=50, rpd=5_000, tpm=246_000, tpd=None),
+    ),
+    "Qwen/Qwen3-Coder-30B-A3B-Instruct": DocumentedLimits(
+        exp=DocumentedTier(rpm=50, rpd=1_000, tpm=128_000, tpd=2_460_000),
+        prod=DocumentedTier(rpm=100, rpd=50_000, tpm=246_000, tpd=None),
+    ),
+    "mistralai/mistral-small-3.2-24b-instruct-2506": DocumentedLimits(
+        exp=DocumentedTier(rpm=50, rpd=1_000, tpm=128_000, tpd=2_460_000),
+        prod=DocumentedTier(rpm=100, rpd=50_000, tpm=246_000, tpd=None),
+    ),
+    "mistralai/ministral-3-8b-instruct-2512": DocumentedLimits(
+        exp=DocumentedTier(rpm=50, rpd=1_000, tpm=128_000, tpd=2_460_000),
+        prod=DocumentedTier(rpm=100, rpd=50_000, tpm=246_000, tpd=None),
+    ),
+}
+
+
+def documented_limits_for(model_name: str) -> DocumentedLimits | None:
+    """Lookup with case-insensitive match; returns None if model is unknown."""
+    if model_name in DOCUMENTED_MODEL_LIMITS:
+        return DOCUMENTED_MODEL_LIMITS[model_name]
+    lowered = model_name.lower()
+    for known, tiers in DOCUMENTED_MODEL_LIMITS.items():
+        if known.lower() == lowered:
+            return tiers
+    return None

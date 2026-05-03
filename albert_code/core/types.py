@@ -479,9 +479,16 @@ class MessageList(Sequence[LLMMessage]):
 
 
 class RateLimitError(Exception):
-    def __init__(self, provider: str, model: str) -> None:
+    def __init__(
+        self,
+        provider: str,
+        model: str,
+        *,
+        detail: str | None = None,
+        is_terminal: bool = False,
+    ) -> None:
         self.provider = provider
         self.model = model
-        super().__init__(
-            "Rate limits exceeded. Please wait a moment before trying again."
-        )
+        self.detail = detail
+        self.is_terminal = is_terminal
+        super().__init__(detail or "Rate limits exceeded.")

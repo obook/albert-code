@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator, Callable, Generator
 from enum import StrEnum, auto
 from http import HTTPStatus
 import json
+import re
 from pathlib import Path
 from threading import Thread
 import time
@@ -142,6 +143,20 @@ class TeleportError(AgentLoopError):
 
 def _should_raise_rate_limit_error(e: Exception) -> bool:
     return isinstance(e, BackendError) and e.status == HTTPStatus.TOO_MANY_REQUESTS
+
+
+_PER_DAY_HINT = re.compile(r"per\s+day", re.IGNORECASE)
+
+
+def _build_rate_limit_error(
+    e: Exception, provider_name: str, model_name: str
+) -> RateLimitError:
+    parsed = e.parsed_error if isinstance(e, BackendError) else None
+    detail = (parsed or "").strip() or None
+    is_terminal = bool(detail and _PER_DAY_HINT.search(detail))
+    return RateLimitError(
+        provider_name, model_name, detail=detail, is_terminal=is_terminal
+    )
 
 
 class AgentLoop:
@@ -588,12 +603,26 @@ class AgentLoop:
 
         Returns True only if:
           - the agent ended its turn cleanly (assistant message, no tool call),
+          - the assistant actually produced content (not an empty response),
           - the auto-continue budget for this user input is not exhausted,
           - the todo list still has pending or in-progress steps.
+
+        Empty assistant responses are excluded: the model failed to emit
+        anything (often a server-side hiccup or token-budget edge case);
+        retrying with another nudge wastes another full-context API call
+        for the same null result.
         """
         if count >= self._MAX_AUTO_CONTINUE_PER_USER_INPUT:
             return False
         if last_message.role != Role.assistant:
+            return False
+        has_content = bool((last_message.content or "").strip())
+        has_tool_calls = bool(last_message.tool_calls)
+        if not has_content and not has_tool_calls:
+            logger.warning(
+                "Skipping auto-continue: assistant returned empty response "
+                "(no content, no tool calls). Avoiding wasted retry."
+            )
             return False
         unfinished = [
             t
@@ -889,7 +918,9 @@ class AgentLoop:
 
         except Exception as e:
             if _should_raise_rate_limit_error(e):
-                raise RateLimitError(provider.name, active_model.name) from e
+                raise _build_rate_limit_error(
+                    e, provider.name, active_model.name
+                ) from e
 
             raise RuntimeError(
                 f"API error from {provider.name} (model: {active_model.name}): {e}"
@@ -938,7 +969,9 @@ class AgentLoop:
 
         except Exception as e:
             if _should_raise_rate_limit_error(e):
-                raise RateLimitError(provider.name, active_model.name) from e
+                raise _build_rate_limit_error(
+                    e, provider.name, active_model.name
+                ) from e
 
             raise RuntimeError(
                 f"API error from {provider.name} (model: {active_model.name}): {e}"

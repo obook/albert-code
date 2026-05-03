@@ -100,7 +100,15 @@ Les documents techniques détaillés sont dans le dossier [`docs/`](docs/) :
 
 ## Remerciements
 
-Ce fork s'inspire du projet [AlbertCode](https://github.com/XenocodeRCE/AlbertCode) de **Simon Roux** pour plusieurs idées clés liées à l'API Albert : auto-fallback de modèle sur 429 répétés, jauge RPM, mode plan-first avec checkpoints, snapshots Git automatiques avant édition. Les implémentations dans ce fork sont indépendantes mais doivent beaucoup à ses choix de conception.
+Ce fork s'inspire du projet [AlbertCode](https://github.com/XenocodeRCE/AlbertCode) de **Simon Roux** pour plusieurs idées clés liées à l'API Albert :
+
+- **Auto-fallback de modèle sur 429 répétés** : après deux 429 consécutifs sur le modèle principal, bascule automatique vers un modèle de secours pendant 60 s puis retour.
+- **Jauge RPM live** : commande slash `/rpm` qui affiche la consommation `requêtes/limite (%) [###···]` du modèle actif sur une fenêtre glissante de 60 s.
+- **Debounce global pré-appel** : un délai minimum `60/rpm + 0.05 s` est imposé entre deux appels HTTP, pour éviter les rafales qui déclenchent les 429 (vu dans `_wait_for_slot` côté collègue).
+- **Lecture du `Retry-After` dans le corps de réponse** : quand Albert renvoie un message texte du type `"Limit exceeded: 50 requests per minute"`, ce délai est extrait et respecté avant le retry.
+- **Table statique des paliers documentés EXP / PROD** par modèle, affichée dans `/limits` à côté du fetch live de `/v1/me/info` : utile pour repérer si le compte est sur le palier expérimental ou production sans appel API supplémentaire.
+
+Les implémentations dans ce fork sont indépendantes mais doivent beaucoup à ses choix de conception.
 
 ## Bibliothèques utilisées
 

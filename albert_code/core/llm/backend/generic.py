@@ -21,7 +21,7 @@ HTTP_TOO_MANY_REQUESTS = 429
 from albert_code.core.llm.backend.anthropic import AnthropicAdapter
 from albert_code.core.llm.backend.base import APIAdapter, PreparedRequest
 from albert_code.core.llm.backend.vertex import VertexAnthropicAdapter
-from albert_code.core.llm.exceptions import BackendErrorBuilder
+from albert_code.core.llm.exceptions import BackendErrorBuilder, TerminalRateLimitError
 from albert_code.core.llm.message_utils import merge_consecutive_user_messages
 from albert_code.core.llm.throttling import get_throttler
 from albert_code.core.types import (
@@ -397,6 +397,9 @@ def _partial_tag_suffix_length(text: str, tag: str) -> int:
 
 
 _BODY_RPM_RE = re.compile(r"(\d+)\s*requests?\s*per\s*minute", re.IGNORECASE)
+_BODY_PER_DAY_RE = re.compile(
+    r"(input\s+)?tokens?\s+per\s+day|requests?\s+per\s+day", re.IGNORECASE
+)
 
 
 def _parse_retry_after_from_body(body: str) -> float | None:
@@ -413,6 +416,19 @@ def _parse_retry_after_from_body(body: str) -> float | None:
         return None
     rpm = max(1, int(match.group(1)))
     return (60.0 / rpm) + 0.1
+
+
+def is_terminal_rate_limit(body: str) -> bool:
+    """Return True if the 429 body says the daily quota (rpd/tpd) is exhausted.
+
+    Albert returns bodies like `"2460000 input tokens per day exceeded
+    (remaining: 0)."` when the daily budget is gone. Sleeping and retrying
+    that won't help until the day rolls over - we'd just burn the rpm on
+    requests that all return 429 immediately.
+    """
+    if not body:
+        return False
+    return _BODY_PER_DAY_RE.search(body[:500]) is not None
 
 
 def _parse_retry_after(value: str) -> float | None:
@@ -555,7 +571,7 @@ class GenericBackend:
         url = f"{base}{req.endpoint}"
 
         throttler = get_throttler(self._provider)
-        await throttler.acquire()
+        await throttler.acquire(model_name=model.name)
 
         try:
             res_data, _ = await self._make_request(
@@ -572,6 +588,17 @@ class GenericBackend:
             throttler.record_success(model_alias=model.alias)
             return chunk
 
+        except TerminalRateLimitError as e:
+            raise BackendErrorBuilder.build_terminal_rate_limit(
+                provider=self._provider.name,
+                endpoint=url,
+                terminal=e,
+                model=model.name,
+                messages=messages,
+                temperature=temperature,
+                has_tools=bool(tools),
+                tool_choice=tool_choice,
+            ) from e
         except httpx.HTTPStatusError as e:
             raise BackendErrorBuilder.build_http_error(
                 provider=self._provider.name,
@@ -664,7 +691,7 @@ class GenericBackend:
         url = f"{base}{req.endpoint}"
 
         throttler = get_throttler(self._provider)
-        await throttler.acquire()
+        await throttler.acquire(model_name=model.name)
 
         last_usage = LLMUsage()
 
@@ -699,6 +726,17 @@ class GenericBackend:
             )
             throttler.record_success(model_alias=model.alias)
 
+        except TerminalRateLimitError as e:
+            raise BackendErrorBuilder.build_terminal_rate_limit(
+                provider=self._provider.name,
+                endpoint=url,
+                terminal=e,
+                model=model.name,
+                messages=messages,
+                temperature=temperature,
+                has_tools=bool(tools),
+                tool_choice=tool_choice,
+            ) from e
         except httpx.HTTPStatusError as e:
             raise BackendErrorBuilder.build_http_error(
                 provider=self._provider.name,
@@ -750,19 +788,52 @@ class GenericBackend:
         """If the upstream returned 429, log it, sleep Retry-After, then let
         async_retry retry. Also records the event on the throttler so it can
         adapt future calls.
+
+        On a terminal 429 (daily quota exhausted - rpd/tpd), raises
+        TerminalRateLimitError instead of sleeping: retrying won't help until
+        the day rolls over, so we fail fast with the server message.
         """
         if response.status_code != HTTP_TOO_MANY_REQUESTS:
             return
-        get_throttler(self._provider).record_rate_limit(model_alias=model_alias)
+        try:
+            body_text = response.text
+        except RuntimeError:
+            body_text = ""
+        logger.warning("429 body: %s", body_text[:300] if body_text else "(empty)")
+
+        if is_terminal_rate_limit(body_text):
+            get_throttler(self._provider).record_rate_limit(
+                model_alias=model_alias
+            )
+            raise TerminalRateLimitError(
+                status=HTTP_TOO_MANY_REQUESTS,
+                headers=response.headers,
+                body_text=body_text,
+                reason="daily-quota",
+            )
+
         retry_after = _parse_retry_after(response.headers.get("Retry-After", ""))
         if retry_after is None:
-            # Some providers put the rate-limit hint in the body, e.g.
-            # `"Limit: 50 requests per minute"`. Best-effort regex fallback.
-            try:
-                body_text = response.text
-            except RuntimeError:
-                body_text = ""
             retry_after = _parse_retry_after_from_body(body_text)
+        throttler = get_throttler(self._provider)
+        throttler.record_rate_limit(
+            model_alias=model_alias, retry_after_seconds=retry_after
+        )
+        # If this 429 just armed the auto-fallback for this model, retrying
+        # the same primary is wasteful: the next agent turn will switch to
+        # the fallback model anyway. Raise a non-retryable error so the
+        # agent loop sees it now instead of burning the remaining retries.
+        if throttler.is_fallback_trigger_reached(model_alias):
+            logger.warning(
+                "Auto-fallback trigger reached for %s; aborting retries.",
+                model_alias,
+            )
+            raise TerminalRateLimitError(
+                status=HTTP_TOO_MANY_REQUESTS,
+                headers=response.headers,
+                body_text=body_text,
+                reason="fallback-armed",
+            )
         if retry_after is not None and retry_after > 0:
             logger.info(
                 "Provider returned 429; sleeping %.2fs (Retry-After)", retry_after

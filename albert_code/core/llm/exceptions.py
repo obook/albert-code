@@ -25,6 +25,35 @@ class PayloadSummary(BaseModel):
     tool_choice: StrToolChoice | AvailableTool | None
 
 
+class TerminalRateLimitError(Exception):
+    """A 429 that should not be retried inside the same backend call.
+
+    Raised from `_handle_429` to bypass `async_retry`: the predicate only
+    retries `httpx.HTTPStatusError`, so this escapes the loop and is
+    converted to a `BackendError` (status 429) at the call site, with the
+    server body preserved for the UI.
+
+    Two reasons trigger this:
+      - daily quota exhausted (rpd/tpd) - won't recover until the day rolls;
+      - auto-fallback trigger reached - retrying the primary is wasted, the
+        next agent turn will switch to the fallback model.
+    """
+
+    def __init__(
+        self,
+        *,
+        status: int,
+        headers: Mapping[str, str],
+        body_text: str,
+        reason: str = "daily-quota",
+    ) -> None:
+        self.status = status
+        self.headers = dict(headers)
+        self.body_text = body_text
+        self.reason = reason
+        super().__init__(body_text[:200] if body_text else f"HTTP {status}")
+
+
 class BackendError(RuntimeError):
     def __init__(
         self,
@@ -55,7 +84,9 @@ class BackendError(RuntimeError):
             return "Invalid API key. Please check your API key and try again."
 
         if self.status == HTTPStatus.TOO_MANY_REQUESTS:
-            return "Rate limit exceeded. Please wait a moment before trying again."
+            detail = (self.parsed_error or self._excerpt(self.body_text)).strip()
+            base = "Rate limit exceeded."
+            return f"{base} {detail}" if detail else base
 
         rid = self.headers.get("x-request-id") or self.headers.get("request-id")
         status_label = (
@@ -132,6 +163,37 @@ class BackendErrorBuilder:
             headers=headers or {},
             body_text=body_text,
             parsed_error=cls._parse_provider_error(body_text),
+            model=model,
+            payload_summary=cls._payload_summary(
+                model, messages, temperature, has_tools, tool_choice
+            ),
+        )
+
+    @classmethod
+    def build_terminal_rate_limit(
+        cls,
+        *,
+        provider: str,
+        endpoint: str,
+        terminal: TerminalRateLimitError,
+        model: str,
+        messages: Sequence[LLMMessage],
+        temperature: float,
+        has_tools: bool,
+        tool_choice: StrToolChoice | AvailableTool | None,
+    ) -> BackendError:
+        if terminal.reason == "daily-quota":
+            reason = "Daily quota exhausted"
+        else:
+            reason = HTTPStatus(terminal.status).phrase
+        return BackendError(
+            provider=provider,
+            endpoint=endpoint,
+            status=terminal.status,
+            reason=reason,
+            headers=terminal.headers,
+            body_text=terminal.body_text,
+            parsed_error=cls._parse_provider_error(terminal.body_text),
             model=model,
             payload_summary=cls._payload_summary(
                 model, messages, temperature, has_tools, tool_choice
