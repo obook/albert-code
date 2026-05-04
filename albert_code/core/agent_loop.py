@@ -319,7 +319,10 @@ class AgentLoop:
         from albert_code.core.llm.throttling import get_throttler
 
         primary = self.config.get_active_model()
-        previous_alias = getattr(self, "_last_resolved_model_alias", primary.alias)
+        # `None` means "no previous resolution yet" (e.g. first call after
+        # init). Treat it as already-on-primary so we don't surface a
+        # spurious "fallback expired" toast at startup.
+        previous_alias = self._last_resolved_model_alias
 
         if not primary.fallback_model or not self.config.auto_fallback_enabled:
             self._last_resolved_model_alias = primary.alias
@@ -328,7 +331,7 @@ class AgentLoop:
         provider = self.config.get_provider_for_model(primary)
         throttler = get_throttler(provider)
         if not throttler.should_fallback(primary.alias):
-            if previous_alias != primary.alias:
+            if previous_alias is not None and previous_alias != primary.alias:
                 self._notify_fallback(
                     "restored", f"Fallback expired, back to {primary.alias}", 0.0
                 )
