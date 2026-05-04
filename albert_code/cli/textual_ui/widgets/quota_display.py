@@ -74,7 +74,7 @@ class QuotaDisplay(NoMarkupStatic):
                 f"tpd {_compact_tokens(snap.tpd_used)}/{_compact_tokens(snap.tpd_limit)}"
             )
 
-        self.update("[" + " ".join(parts) + "]")
+        self.update(" ".join(parts))
 
         # Pick the strongest signal across all four counters to colour the
         # line: any one being close to its cap deserves attention.

@@ -16,7 +16,6 @@ from albert_code.core.skills.manager import SkillManager
 
 @dataclass
 class BannerState:
-    active_model: str = ""
     models_count: int = 0
     mcp_servers_count: int = 0
     skills_count: int = 0
@@ -31,7 +30,6 @@ class Banner(Static):
         super().__init__(**kwargs)
         self.can_focus = False
         self._initial_state = BannerState(
-            active_model=config.active_model,
             models_count=len(config.models),
             mcp_servers_count=len(config.mcp_servers),
             skills_count=len(skill_manager.available_skills),
@@ -44,10 +42,9 @@ class Banner(Static):
 
             with Vertical(id="banner-info"):
                 with Horizontal(classes="banner-line"):
-                    yield NoMarkupStatic("Model: ", classes="banner-meta")
-                    yield NoMarkupStatic("", id="banner-model")
+                    yield NoMarkupStatic("", id="banner-models-count")
                 with Horizontal(classes="banner-line"):
-                    yield NoMarkupStatic("", id="banner-meta-counts")
+                    yield NoMarkupStatic("", id="banner-extras-count")
                 with Horizontal(classes="banner-line"):
                     yield NoMarkupStatic("Type ", classes="banner-meta")
                     yield NoMarkupStatic("/help", classes="banner-cmd")
@@ -57,9 +54,11 @@ class Banner(Static):
         self.state = self._initial_state
 
     def watch_state(self) -> None:
-        self.query_one("#banner-model", NoMarkupStatic).update(self.state.active_model)
-        self.query_one("#banner-meta-counts", NoMarkupStatic).update(
-            self._format_meta_counts()
+        self.query_one("#banner-models-count", NoMarkupStatic).update(
+            self._format_models_count()
+        )
+        self.query_one("#banner-extras-count", NoMarkupStatic).update(
+            self._format_extras_count()
         )
 
     def freeze_animation(self) -> None:
@@ -68,15 +67,19 @@ class Banner(Static):
 
     def set_state(self, config: VibeConfig, skill_manager: SkillManager) -> None:
         self.state = BannerState(
-            active_model=config.active_model,
             models_count=len(config.models),
             mcp_servers_count=len(config.mcp_servers),
             skills_count=len(skill_manager.available_skills),
         )
 
-    def _format_meta_counts(self) -> str:
+    def _format_models_count(self) -> str:
+        n = self.state.models_count
+        return f"{n} model{'s' if n != 1 else ''}"
+
+    def _format_extras_count(self) -> str:
+        m = self.state.mcp_servers_count
+        s = self.state.skills_count
         return (
-            f"{self.state.models_count} model{'s' if self.state.models_count != 1 else ''}"
-            f" · {self.state.mcp_servers_count} MCP server{'s' if self.state.mcp_servers_count != 1 else ''}"
-            f" · {self.state.skills_count} skill{'s' if self.state.skills_count != 1 else ''}"
+            f"{m} MCP server{'s' if m != 1 else ''}"
+            f" · {s} skill{'s' if s != 1 else ''}"
         )

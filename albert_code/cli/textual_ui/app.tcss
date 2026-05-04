@@ -963,15 +963,6 @@ QuotaDisplay.quota-danger {
     width: auto;
 }
 
-#banner-model {
-    color: ansi_cyan;
-    width: auto;
-}
-
-#banner-meta-counts {
-    width: auto;
-}
-
 .banner-cmd {
     color: ansi_cyan;
     width: auto;
