@@ -268,6 +268,17 @@ _FN_OPEN_RE = re.compile(r"<function=\w+>")
 _FN_OPEN_PARTIAL_RE = re.compile(
     r"<(?:f(?:u(?:n(?:c(?:t(?:i(?:o(?:n(?:=\w*)?)?)?)?)?)?)?)?)?$"
 )
+# Orphaned closing tags left over after the parser grabs a bare
+# <function=...>...</function> block without its <tool_call> wrapper.
+_ORPHANED_CLOSE_RE = re.compile(r"\s*</(?:tool_call|function)>")
+# Trailing fragment that could be the start of a closing tag once more text
+# arrives.  Matches `</`, `</t`, ..., `</tool_call`, `</f`, ..., `</function`.
+_CLOSE_PARTIAL_RE = re.compile(
+    r"</"
+    r"(?:t(?:o(?:o(?:l(?:_(?:c(?:a(?:l(?:l)?)?)?)?)?)?)?)?|"
+    r"f(?:u(?:n(?:c(?:t(?:i(?:o(?:n)?)?)?)?)?)?)?)?"
+    r"$"
+)
 
 
 class XmlToolCallStreamParser:
@@ -308,8 +319,8 @@ class XmlToolCallStreamParser:
                 leftover, start_index=self._next_tool_index
             )
             self._next_tool_index += len(tool_calls)
-            return cleaned, tool_calls
-        return leftover, []
+            return _ORPHANED_CLOSE_RE.sub("", cleaned), tool_calls
+        return _ORPHANED_CLOSE_RE.sub("", leftover), []
 
     def _find_open(self) -> tuple[int, str]:
         """Earliest opening marker as (index, kind). Returns (-1, '') if none.
@@ -345,14 +356,20 @@ class XmlToolCallStreamParser:
             candidates.append((tc_close_idx, len(_TOOL_CALL_CLOSE)))
         return min(candidates) if candidates else (-1, 0)
 
-    def _trailing_partial_open_length(self) -> int:
-        """Length of the trailing fragment that could be the start of an opener."""
+    def _trailing_partial_tag_length(self) -> int:
+        """Length of the trailing fragment that could be the start of any tag."""
         tc_partial = _partial_tag_suffix_length(self._buffer, _TOOL_CALL_OPEN)
         fn_match = _FN_OPEN_PARTIAL_RE.search(self._buffer)
         fn_partial = (
             len(self._buffer) - fn_match.start() if fn_match and fn_match.group() else 0
         )
-        return max(tc_partial, fn_partial)
+        close_match = _CLOSE_PARTIAL_RE.search(self._buffer)
+        close_partial = (
+            len(self._buffer) - close_match.start()
+            if close_match and close_match.group()
+            else 0
+        )
+        return max(tc_partial, fn_partial, close_partial)
 
     def _drain(self) -> tuple[str, list[ToolCall]]:
         safe_parts: list[str] = []
@@ -361,7 +378,7 @@ class XmlToolCallStreamParser:
             open_idx, open_kind = self._find_open()
 
             if open_idx < 0:
-                partial = self._trailing_partial_open_length()
+                partial = self._trailing_partial_tag_length()
                 if partial == 0:
                     safe_parts.append(self._buffer)
                     self._buffer = ""
@@ -386,9 +403,15 @@ class XmlToolCallStreamParser:
             self._next_tool_index += len(parsed)
             new_calls.extend(parsed)
             self._buffer = self._buffer[end:]
+            # After extracting a bare <function>…</function>, an orphaned
+            # </tool_call> wrapper may remain; consume it silently.
+            stripped = self._buffer.lstrip()
+            if stripped.startswith(_TOOL_CALL_CLOSE):
+                self._buffer = stripped[len(_TOOL_CALL_CLOSE) :]
             continue
 
-        return "".join(safe_parts), new_calls
+        safe_text = _ORPHANED_CLOSE_RE.sub("", "".join(safe_parts))
+        return safe_text, new_calls
 
 
 def _partial_tag_suffix_length(text: str, tag: str) -> int:

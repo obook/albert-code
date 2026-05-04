@@ -217,3 +217,71 @@ class TestXmlToolCallStreamParserBareFunction:
         safe, calls = parser.feed("tioning")
         assert calls == []
         assert safe == "<functioning"
+
+
+class TestXmlToolCallStreamParserOrphanedClose:
+    """Coverage for orphaned closing tags that leak into visible output.
+
+    When the model emits <function=...>...</function></tool_call>, the parser
+    grabs the inner <function> block first.  The leftover </tool_call> must
+    be stripped rather than displayed to the user.
+    """
+
+    def test_orphaned_close_after_bare_function_same_chunk(self) -> None:
+        parser = _make_parser()
+        text = (
+            "<function=read_file>"
+            "<parameter=path>README.md</parameter>"
+            "</function>"
+            "\n</tool_call>"
+        )
+        safe, calls = parser.feed(text)
+        assert "</tool_call>" not in safe
+        assert safe.strip() == ""
+        assert len(calls) == 1
+        assert calls[0].function.name == "read_file"
+
+    def test_orphaned_close_arrives_in_separate_chunk(self) -> None:
+        parser = _make_parser()
+        s1, c1 = parser.feed(
+            "<function=read_file><parameter=path>README.md</parameter></function>"
+        )
+        s2, c2 = parser.feed("\n</tool_call>")
+        assert len(c1) == 1
+        assert "</tool_call>" not in s1
+        assert "</tool_call>" not in s2
+
+    def test_orphaned_close_split_across_chunks(self) -> None:
+        """</tool_call> arrives as </to then ol_call>."""
+        parser = _make_parser()
+        parser.feed(
+            "<function=read_file><parameter=path>README.md</parameter></function>"
+        )
+        s1, _ = parser.feed("</to")
+        s2, _ = parser.feed("ol_call>")
+        combined = s1 + s2
+        assert "</tool_call>" not in combined
+        assert combined.strip() == ""
+
+    def test_orphaned_close_in_flush(self) -> None:
+        parser = _make_parser()
+        parser.feed(
+            "<function=read_file><parameter=path>README.md</parameter></function>"
+        )
+        parser.feed("\n</tool_call>")
+        leftover_safe, leftover_calls = parser.flush()
+        assert "</tool_call>" not in leftover_safe
+
+    def test_text_after_orphaned_close_is_preserved(self) -> None:
+        parser = _make_parser()
+        text = (
+            "<function=read_file>"
+            "<parameter=path>README.md</parameter>"
+            "</function>"
+            "</tool_call>"
+            "Now I summarize."
+        )
+        safe, calls = parser.feed(text)
+        assert "Now I summarize." in safe
+        assert "</tool_call>" not in safe
+        assert len(calls) == 1
