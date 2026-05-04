@@ -61,7 +61,7 @@ def wait_for_request_count(
 
 
 def wait_for_main_screen(child: pexpect.spawn, timeout: float = 20.0) -> None:
-    child.expect(ansi_tolerant_pattern("Albert Code v"), timeout=timeout)
+    child.expect(ansi_tolerant_pattern("Model: "), timeout=timeout)
 
 
 def wait_for_rendered_text(

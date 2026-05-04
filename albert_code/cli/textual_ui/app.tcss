@@ -958,17 +958,6 @@ QuotaDisplay.quota-danger {
     height: auto;
 }
 
-#banner-brand {
-    color: $albert_blue;
-    text-style: bold;
-    width: auto;
-}
-
-.banner-spacer {
-    width: 1;
-    color: transparent;
-}
-
 .banner-meta {
     color: ansi_default;
     width: auto;

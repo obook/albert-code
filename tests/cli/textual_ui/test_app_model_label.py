@@ -13,6 +13,7 @@ stub.
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import cast
 
 from albert_code.cli.textual_ui.app import VibeApp
 from albert_code.core.config import ModelConfig
@@ -26,14 +27,14 @@ def _make_model(alias: str, name: str, fallback: str | None = None) -> ModelConf
 
 def _make_stub(
     *, active_alias: str, models: list[ModelConfig], last_resolved: str | None
-) -> SimpleNamespace:
+) -> VibeApp:
     config = SimpleNamespace(
         active_model=active_alias,
         models=models,
         get_active_model=lambda: next(m for m in models if m.alias == active_alias),
     )
     agent_loop = SimpleNamespace(_last_resolved_model_alias=last_resolved)
-    return SimpleNamespace(config=config, agent_loop=agent_loop)
+    return cast(VibeApp, SimpleNamespace(config=config, agent_loop=agent_loop))
 
 
 class TestFormatModelLabelPrimary:
@@ -43,7 +44,7 @@ class TestFormatModelLabelPrimary:
             active_alias="albert-code", models=[primary], last_resolved="albert-code"
         )
         label = VibeApp._format_model_label(stub)
-        assert label == "⚙ albert-code (Qwen3-Coder-30B-A3B-Instruct)"
+        assert label == "⚙  albert-code (Qwen3-Coder-30B-A3B-Instruct)"
 
     def test_no_resolved_alias_yet_falls_back_to_primary(self) -> None:
         primary = _make_model("albert-code", "Qwen/Qwen3-Coder-30B-A3B-Instruct")
@@ -51,14 +52,14 @@ class TestFormatModelLabelPrimary:
             active_alias="albert-code", models=[primary], last_resolved=None
         )
         label = VibeApp._format_model_label(stub)
-        assert label.startswith("⚙ ")
+        assert label.startswith("⚙  ")
         assert "albert-code" in label
 
     def test_alias_equals_short_name_collapses_to_one(self) -> None:
         primary = _make_model("solo", "solo")
         stub = _make_stub(active_alias="solo", models=[primary], last_resolved="solo")
         label = VibeApp._format_model_label(stub)
-        assert label == "⚙ solo"
+        assert label == "⚙  solo"
 
 
 class TestFormatModelLabelFallback:
@@ -73,7 +74,7 @@ class TestFormatModelLabelFallback:
             last_resolved="albert-large",
         )
         label = VibeApp._format_model_label(stub)
-        assert label == "↳ albert-large (gpt-oss-120b)"
+        assert label == "↳  albert-large (gpt-oss-120b)"
         assert "Qwen" not in label
 
     def test_fallback_back_to_primary_shows_gear_again(self) -> None:
@@ -88,7 +89,7 @@ class TestFormatModelLabelFallback:
             last_resolved="albert-code",
         )
         label = VibeApp._format_model_label(stub)
-        assert label.startswith("⚙ ")
+        assert label.startswith("⚙  ")
         assert "albert-code" in label
 
     def test_unknown_resolved_alias_does_not_break_label(self) -> None:
@@ -99,7 +100,7 @@ class TestFormatModelLabelFallback:
         )
         label = VibeApp._format_model_label(stub)
         # No matching candidate -> stays on primary, gear prefix.
-        assert label.startswith("⚙ ")
+        assert label.startswith("⚙  ")
         assert "albert-code" in label
 
 
@@ -114,7 +115,7 @@ class TestFormatModelLabelMissingConfig:
             active_model="ghost-model", models=[], get_active_model=_raise
         )
         agent_loop = SimpleNamespace(_last_resolved_model_alias=None)
-        stub = SimpleNamespace(config=config, agent_loop=agent_loop)
+        stub = cast(VibeApp, SimpleNamespace(config=config, agent_loop=agent_loop))
 
         label = VibeApp._format_model_label(stub)
-        assert label == "⚙ ghost-model"
+        assert label == "⚙  ghost-model"

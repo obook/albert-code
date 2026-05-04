@@ -8,7 +8,6 @@ from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Static
 
-from albert_code import __version__
 from albert_code.cli.textual_ui.widgets.banner.albert_logo import AlbertLogo
 from albert_code.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
 from albert_code.core.config import VibeConfig
@@ -45,9 +44,7 @@ class Banner(Static):
 
             with Vertical(id="banner-info"):
                 with Horizontal(classes="banner-line"):
-                    yield NoMarkupStatic("Albert Code", id="banner-brand")
-                    yield NoMarkupStatic(" ", classes="banner-spacer")
-                    yield NoMarkupStatic(f"v{__version__} · ", classes="banner-meta")
+                    yield NoMarkupStatic("Model: ", classes="banner-meta")
                     yield NoMarkupStatic("", id="banner-model")
                 with Horizontal(classes="banner-line"):
                     yield NoMarkupStatic("", id="banner-meta-counts")

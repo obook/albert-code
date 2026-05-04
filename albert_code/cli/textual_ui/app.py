@@ -294,8 +294,8 @@ class VibeApp(App):  # noqa: PLR0904
         with Horizontal(id="bottom-bar"):
             # TODO: re-enable later
             # yield PathDisplay(self.config.displayed_workdir or Path.cwd())
-            yield NoMarkupStatic(id="spacer")
             yield QuotaDisplay(id="bottom-quota")
+            yield NoMarkupStatic(id="spacer")
             yield NoMarkupStatic(self._format_model_label(), id="bottom-model")
             yield ContextProgress()
 
@@ -922,7 +922,11 @@ class VibeApp(App):  # noqa: PLR0904
             pass
 
     def _format_model_label(self) -> str:
-        """Format the active model for the bottom bar as `⚙ alias (short-name)`.
+        """Format the active model for the bottom bar as `⚙  alias (short-name)`.
+
+        Two spaces between the gear/arrow glyph and the rest: the cog
+        character renders as a wide cell in most terminals and a single
+        space gets visually swallowed.
 
         - `alias` is the user-friendly identifier from ModelConfig.
         - `short-name` strips the org prefix from the underlying model id
@@ -936,7 +940,7 @@ class VibeApp(App):  # noqa: PLR0904
         try:
             primary = self.config.get_active_model()
         except ValueError:
-            return f"⚙ {self.config.active_model}"
+            return f"⚙  {self.config.active_model}"
 
         # Pick the model that the agent loop actually resolved last - this
         # reflects the auto-fallback even though the config's active_model
@@ -956,8 +960,8 @@ class VibeApp(App):  # noqa: PLR0904
 
         prefix = "↳" if effective is not primary else "⚙"
         if not alias or alias == short_name:
-            return f"{prefix} {short_name}"
-        return f"{prefix} {alias} ({short_name})"
+            return f"{prefix}  {short_name}"
+        return f"{prefix}  {alias} ({short_name})"
 
     async def _toggle_fallback(self) -> None:
         """Toggle the auto-fallback-on-429 strategy ON/OFF."""
