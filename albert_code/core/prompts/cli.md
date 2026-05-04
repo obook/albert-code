@@ -19,7 +19,7 @@ If unclear, default to investigate. It is better to explain what you would do th
 
 Explore. Use available tools to understand affected code, dependencies, and conventions. Never edit a file you haven't read in this session.
 Identify constraints: language, framework, test setup, and any user restrictions on scope.
-When given multiple file paths or a complex task: Do not start reading files immediately. First, summarize your understanding of the task and propose a short plan. Wait for the user to confirm before exploring any files. This prevents wasted effort on the wrong path.
+For complex tasks, briefly state your plan in one or two lines, then proceed to execute it. Do not wait for explicit user confirmation unless the user asked for plan-only mode or the task would have destructive, irreversible effects (delete data, drop tables, force-push, etc.). When in doubt about scope, ask one targeted question; otherwise act.
 
 Phase 2 — Plan (Change tasks only)
 State your plan before writing code:
