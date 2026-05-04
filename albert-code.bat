@@ -158,7 +158,7 @@ call "%VENV_DIR%\Scripts\activate.bat"
 
 REM Calculer le hash de pyproject.toml pour detecter les changements
 set CURRENT_HASH=
-for /f "skip=1 tokens=*" %%H in ('certutil -hashfile "%PYPROJECT%" SHA256 ^| findstr /v ":"') do (
+for /f "tokens=*" %%H in ('certutil -hashfile "%PYPROJECT%" SHA256 ^| findstr /v ":"') do (
     if not defined CURRENT_HASH set CURRENT_HASH=%%H
 )
 set CURRENT_HASH=%CURRENT_HASH: =%
