@@ -52,7 +52,7 @@ from albert_code.cli.textual_ui.widgets.messages import (
     WhatsNewMessage,
 )
 from albert_code.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
-from albert_code.cli.textual_ui.widgets.path_display import PathDisplay
+from albert_code.cli.textual_ui.widgets.path_display import PathDisplay  # noqa: F401
 from albert_code.cli.textual_ui.widgets.proxy_setup_app import ProxySetupApp
 from albert_code.cli.textual_ui.widgets.question_app import QuestionApp
 from albert_code.cli.textual_ui.widgets.quota_display import QuotaDisplay
@@ -292,7 +292,8 @@ class VibeApp(App):  # noqa: PLR0904
             )
 
         with Horizontal(id="bottom-bar"):
-            yield PathDisplay(self.config.displayed_workdir or Path.cwd())
+            # TODO: re-enable later
+            # yield PathDisplay(self.config.displayed_workdir or Path.cwd())
             yield NoMarkupStatic(id="spacer")
             yield QuotaDisplay(id="bottom-quota")
             yield NoMarkupStatic(self._format_model_label(), id="bottom-model")
