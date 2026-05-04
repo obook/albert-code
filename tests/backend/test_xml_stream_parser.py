@@ -2,7 +2,19 @@ from __future__ import annotations
 
 import json
 
-from albert_code.core.llm.backend.generic import OpenAIAdapter, XmlToolCallStreamParser
+from albert_code.core.llm.backend.generic import (
+    OpenAIAdapter,
+    XmlToolCallStreamParser,
+    _emit_through_xml_parser,
+)
+from albert_code.core.types import (
+    FunctionCall,
+    LLMChunk,
+    LLMMessage,
+    LLMUsage,
+    Role,
+    ToolCall,
+)
 
 
 def _make_parser() -> XmlToolCallStreamParser:
@@ -285,3 +297,96 @@ class TestXmlToolCallStreamParserOrphanedClose:
         assert "Now I summarize." in safe
         assert "</tool_call>" not in safe
         assert len(calls) == 1
+
+    def test_legitimate_close_tag_text_after_followup_chunks_is_preserved(self) -> None:
+        """Regression: orphan-strip must NOT eat legitimate `</tool_call>`
+        text that the model emits later in the response (e.g. when discussing
+        the XML tool-call format). Only the orphan immediately following an
+        extracted tool call should be eaten.
+        """
+        parser = _make_parser()
+        # First, a real tool call extraction (arms the orphan-skip).
+        parser.feed(
+            "<tool_call>\n<function=read_file>\n"
+            "<parameter=path>x</parameter>\n</function>\n</tool_call>"
+        )
+        # Then unrelated content. The first chunk has real text; later the
+        # model writes the literal string `</tool_call>` (e.g. inside a
+        # backticked code sample). It must reach the user.
+        s1, _ = parser.feed("Done. ")
+        s2, _ = parser.feed("Closing tag is `</tool_call>` in this format.")
+        combined = s1 + s2
+        assert "Done." in combined
+        assert "</tool_call>" in combined
+
+    def test_orphan_flag_does_not_eat_first_safe_content(self) -> None:
+        """After a tool call, the next chunk's leading TEXT must come through
+        even though the orphan flag is armed. Only `\\s*</tool_call>` is eaten;
+        anything else passes through and disarms the flag implicitly via the
+        loop's normal emission path.
+        """
+        parser = _make_parser()
+        parser.feed(
+            "<tool_call>\n<function=read_file>\n"
+            "<parameter=path>x</parameter>\n</function>\n</tool_call>"
+        )
+        safe, _ = parser.feed("Hello world.")
+        assert safe == "Hello world."
+
+
+class TestEmitThroughXmlParser:
+    """Coverage for the streaming pipeline helper that pipes provider chunks
+    through the XML parser. Native OpenAI-format tool calls (in
+    ``chunk.message.tool_calls``) must be forwarded; otherwise providers that
+    switch from XML to native mid-conversation silently lose tool calls.
+    """
+
+    @staticmethod
+    def _native_chunk(
+        *, content: str | None = None, tool_calls: list[ToolCall] | None = None
+    ) -> LLMChunk:
+        return LLMChunk(
+            message=LLMMessage(
+                role=Role.assistant, content=content, tool_calls=tool_calls
+            ),
+            usage=LLMUsage(prompt_tokens=0, completion_tokens=0),
+        )
+
+    def test_native_tool_call_in_delta_is_forwarded(self) -> None:
+        parser = XmlToolCallStreamParser(OpenAIAdapter())
+        native_tc = ToolCall(
+            id="tc-native-1",
+            index=0,
+            function=FunctionCall(name="read_file", arguments='{"path": "x.md"}'),
+        )
+        chunk = self._native_chunk(content=None, tool_calls=[native_tc])
+        out = list(_emit_through_xml_parser(chunk, parser))
+        assert len(out) == 1
+        emitted = out[0].message.tool_calls or []
+        assert len(emitted) == 1
+        assert emitted[0].function.name == "read_file"
+        assert emitted[0].id == "tc-native-1"
+
+    def test_xml_and_native_tool_calls_both_forwarded(self) -> None:
+        parser = XmlToolCallStreamParser(OpenAIAdapter())
+        native_tc = ToolCall(
+            id="tc-native", index=0, function=FunctionCall(name="ls", arguments="{}")
+        )
+        xml_content = (
+            "<tool_call>\n<function=read_file>\n"
+            "<parameter=path>x.md</parameter>\n</function>\n</tool_call>"
+        )
+        chunk = self._native_chunk(content=xml_content, tool_calls=[native_tc])
+        out = list(_emit_through_xml_parser(chunk, parser))
+        assert len(out) == 1
+        emitted = out[0].message.tool_calls or []
+        names = {tc.function.name for tc in emitted}
+        assert names == {"ls", "read_file"}
+
+    def test_pure_text_passes_through(self) -> None:
+        parser = XmlToolCallStreamParser(OpenAIAdapter())
+        chunk = self._native_chunk(content="Hello", tool_calls=None)
+        out = list(_emit_through_xml_parser(chunk, parser))
+        assert len(out) == 1
+        assert out[0].message.content == "Hello"
+        assert out[0].message.tool_calls is None

@@ -300,6 +300,13 @@ class XmlToolCallStreamParser:
         self._adapter = adapter
         self._buffer = ""
         self._next_tool_index = 0
+        # Armed right after extracting a tool call.  When True, a leading
+        # `</tool_call>` (with optional whitespace) on the next visible bytes
+        # is treated as an orphan wrapper from the just-extracted block and
+        # consumed silently.  Disarmed as soon as any non-orphan content is
+        # emitted, so we never strip `</tool_call>` text the model produces
+        # later in the response.
+        self._orphan_close_pending = False
 
     def feed(self, delta: str) -> tuple[str, list[ToolCall]]:
         """Consume a delta. Returns (safe_content_to_emit, completed_tool_calls)."""
@@ -319,8 +326,19 @@ class XmlToolCallStreamParser:
                 leftover, start_index=self._next_tool_index
             )
             self._next_tool_index += len(tool_calls)
-            return _ORPHANED_CLOSE_RE.sub("", cleaned), tool_calls
-        return _ORPHANED_CLOSE_RE.sub("", leftover), []
+            self._orphan_close_pending = bool(tool_calls)
+            return cleaned, tool_calls
+        if self._orphan_close_pending:
+            leftover = self._strip_leading_orphan_close(leftover)
+            self._orphan_close_pending = False
+        return leftover, []
+
+    def _strip_leading_orphan_close(self, text: str) -> str:
+        """Strip a single leading `</tool_call>` or `</function>` tag (with
+        optional preceding whitespace) from ``text``.
+        """
+        match = _ORPHANED_CLOSE_RE.match(text)
+        return text[match.end() :] if match else text
 
     def _find_open(self) -> tuple[int, str]:
         """Earliest opening marker as (index, kind). Returns (-1, '') if none.
@@ -372,6 +390,16 @@ class XmlToolCallStreamParser:
         return max(tc_partial, fn_partial, close_partial)
 
     def _drain(self) -> tuple[str, list[ToolCall]]:
+        # If a previous extraction armed an orphan-close consumption, try to
+        # eat the leading orphan now.  Only disarm if we actually consumed
+        # something - otherwise the buffer might still be growing toward a
+        # complete `</tool_call>` from a partial fragment in this chunk.
+        if self._orphan_close_pending:
+            new_buffer = self._strip_leading_orphan_close(self._buffer)
+            if new_buffer != self._buffer:
+                self._buffer = new_buffer
+                self._orphan_close_pending = False
+
         safe_parts: list[str] = []
         new_calls: list[ToolCall] = []
         while True:
@@ -404,14 +432,14 @@ class XmlToolCallStreamParser:
             new_calls.extend(parsed)
             self._buffer = self._buffer[end:]
             # After extracting a bare <function>…</function>, an orphaned
-            # </tool_call> wrapper may remain; consume it silently.
-            stripped = self._buffer.lstrip()
-            if stripped.startswith(_TOOL_CALL_CLOSE):
-                self._buffer = stripped[len(_TOOL_CALL_CLOSE) :]
+            # </tool_call> wrapper may remain in the same chunk; consume it.
+            self._buffer = self._strip_leading_orphan_close(self._buffer)
+            # Arm the cross-chunk variant: if the orphan instead arrives in
+            # the next SSE delta, _drain's pre-loop pass will eat it.
+            self._orphan_close_pending = bool(parsed)
             continue
 
-        safe_text = _ORPHANED_CLOSE_RE.sub("", "".join(safe_parts))
-        return safe_text, new_calls
+        return "".join(safe_parts), new_calls
 
 
 def _partial_tag_suffix_length(text: str, tag: str) -> int:
@@ -488,12 +516,20 @@ def _emit_through_xml_parser(
 
     Yields cleaned content chunks and synthesized tool-call chunks, preserving
     the upstream usage so token counts still reach the agent loop.
+
+    Native OpenAI-format tool calls (in ``chunk.message.tool_calls``) are
+    forwarded as-is.  Some providers send XML in ``content`` for the first
+    call of a session and switch to native format for follow-ups; dropping
+    the native ones would silently lose tool calls.
     """
     delta_content = chunk.message.content or ""
-    safe_content, new_tool_calls = parser.feed(str(delta_content))
+    safe_content, xml_tool_calls = parser.feed(str(delta_content))
+
+    native_tool_calls = list(chunk.message.tool_calls or [])
+    merged_tool_calls = native_tool_calls + list(xml_tool_calls)
 
     has_safe_content = bool(safe_content)
-    has_tool_calls = bool(new_tool_calls)
+    has_tool_calls = bool(merged_tool_calls)
     has_usage = chunk.usage is not None
 
     if not (has_safe_content or has_tool_calls or has_usage):
@@ -503,7 +539,7 @@ def _emit_through_xml_parser(
         message=LLMMessage(
             role=chunk.message.role,
             content=safe_content if has_safe_content else None,
-            tool_calls=new_tool_calls if has_tool_calls else None,
+            tool_calls=merged_tool_calls if has_tool_calls else None,
             reasoning_content=chunk.message.reasoning_content,
             reasoning_signature=chunk.message.reasoning_signature,
         ),
