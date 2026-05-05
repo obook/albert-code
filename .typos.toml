@@ -7,6 +7,7 @@ extend-exclude = [
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "README.md",
+    "WINDOWS.md",
     "WORK.md",
     "albert-code.sh",
     "albert-code.bat",
