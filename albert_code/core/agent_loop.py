@@ -216,7 +216,9 @@ class AgentLoop:
         self.entrypoint_metadata = entrypoint_metadata
         self.session_id = str(uuid4())
         self._current_user_message_id: str | None = None
-        self._fallback_observer: Callable[[str, str, float], None] | None = None
+        self._fallback_observer: (
+            Callable[[str, str, float, str | None], None] | None
+        ) = None
         self._last_resolved_model_alias: str | None = None
 
         self.telemetry_client = TelemetryClient(config_getter=lambda: self.config)
@@ -288,23 +290,28 @@ class AgentLoop:
         return BACKEND_FACTORY[provider.backend](provider=provider, timeout=timeout)
 
     def set_fallback_observer(
-        self, observer: Callable[[str, str, float], None] | None
+        self, observer: Callable[[str, str, float, str | None], None] | None
     ) -> None:
         """Register a callback notified on auto-fallback transitions.
 
-        Called with (event_kind, message, remaining_seconds) where
-        `event_kind` is "activated" or "restored".
+        Called with (event_kind, message, remaining_seconds, limit_type)
+        where `event_kind` is "activated" or "restored" and `limit_type`
+        is one of "tpm" / "rpm" / "tpd" / "rpd" or None.
         """
         self._fallback_observer = observer
 
     def _notify_fallback(
-        self, kind: str, message: str, remaining_seconds: float
+        self,
+        kind: str,
+        message: str,
+        remaining_seconds: float,
+        limit_type: str | None = None,
     ) -> None:
         observer = getattr(self, "_fallback_observer", None)
         if observer is None:
             return
         try:
-            observer(kind, message, remaining_seconds)
+            observer(kind, message, remaining_seconds, limit_type)
         except Exception:
             logger.debug("Fallback observer raised", exc_info=True)
 
@@ -353,6 +360,7 @@ class AgentLoop:
                         f"Auto-fallback: {primary.alias} -> {candidate.alias} "
                         f"for ~{int(remaining)}s",
                         remaining,
+                        throttler.last_limit_type(primary.alias),
                     )
                 self._last_resolved_model_alias = candidate.alias
                 return candidate

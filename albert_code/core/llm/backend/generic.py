@@ -455,6 +455,30 @@ _BODY_RPM_RE = re.compile(r"(\d+)\s*requests?\s*per\s*minute", re.IGNORECASE)
 _BODY_PER_DAY_RE = re.compile(
     r"(input\s+)?tokens?\s+per\s+day|requests?\s+per\s+day", re.IGNORECASE
 )
+_BODY_TPM_RE = re.compile(r"(input\s+)?tokens?\s+per\s+minute", re.IGNORECASE)
+_BODY_TPD_RE = re.compile(r"(input\s+)?tokens?\s+per\s+day", re.IGNORECASE)
+_BODY_RPD_RE = re.compile(r"requests?\s+per\s+day", re.IGNORECASE)
+
+
+def parse_limit_type(body: str) -> str | None:
+    """Detect which Albert quota the 429 body refers to.
+
+    Returns one of "tpm", "rpm", "tpd", "rpd", or None when no quota
+    keyword is recognised. Order matters: per-day patterns are tested
+    before per-minute so "tokens per day" doesn't match the tpm regex.
+    """
+    if not body:
+        return None
+    head = body[:500]
+    if _BODY_TPD_RE.search(head):
+        return "tpd"
+    if _BODY_RPD_RE.search(head):
+        return "rpd"
+    if _BODY_TPM_RE.search(head):
+        return "tpm"
+    if _BODY_RPM_RE.search(head):
+        return "rpm"
+    return None
 
 
 def _parse_retry_after_from_body(body: str) -> float | None:
@@ -871,8 +895,12 @@ class GenericBackend:
             body_text = ""
         logger.warning("429 body: %s", body_text[:300] if body_text else "(empty)")
 
+        limit_type = parse_limit_type(body_text)
+
         if is_terminal_rate_limit(body_text):
-            get_throttler(self._provider).record_rate_limit(model_alias=model_alias)
+            get_throttler(self._provider).record_rate_limit(
+                model_alias=model_alias, limit_type=limit_type
+            )
             save_terminal_quota_event(
                 model_name=model_name or model_alias or "unknown",
                 reason="daily-quota",
@@ -890,7 +918,9 @@ class GenericBackend:
             retry_after = _parse_retry_after_from_body(body_text)
         throttler = get_throttler(self._provider)
         throttler.record_rate_limit(
-            model_alias=model_alias, retry_after_seconds=retry_after
+            model_alias=model_alias,
+            retry_after_seconds=retry_after,
+            limit_type=limit_type,
         )
         # If this 429 just armed the auto-fallback for this model, retrying
         # the same primary is wasteful: the next agent turn will switch to

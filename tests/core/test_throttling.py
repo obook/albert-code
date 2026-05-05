@@ -253,3 +253,54 @@ class TestThrottlerAutoFallback:
         assert throttler.fallback_remaining_seconds("albert-code") == pytest.approx(
             40.0
         )
+
+
+class TestThrottlerLimitType:
+    """`record_rate_limit` accepts an optional `limit_type` ("tpm" / "rpm"
+    / "tpd" / "rpd") so the agent loop can name the tripped quota when
+    arming the auto-fallback. This suite locks in storage, retrieval, and
+    cleanup semantics.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _reset(self) -> None:
+        reset_throttlers_for_tests()
+
+    def test_record_then_read_back(self) -> None:
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_rate_limit(model_alias="albert-code", limit_type="tpm")
+        assert throttler.last_limit_type("albert-code") == "tpm"
+
+    def test_unknown_alias_returns_none(self) -> None:
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        assert throttler.last_limit_type("never-seen") is None
+
+    def test_omitting_limit_type_does_not_store(self) -> None:
+        # Backward compat: existing call sites that don't pass limit_type
+        # must not poison the dict (would surface as a stale type from a
+        # previous 429 in the worst case, but here it stays None).
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_rate_limit(model_alias="albert-code")
+        assert throttler.last_limit_type("albert-code") is None
+
+    def test_record_success_clears_limit_type(self) -> None:
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_rate_limit(model_alias="albert-code", limit_type="tpd")
+        throttler.record_success(model_alias="albert-code")
+        assert throttler.last_limit_type("albert-code") is None
+
+    def test_latest_value_wins(self) -> None:
+        # Two consecutive 429 with different quota types - the agent loop
+        # arms the fallback after the second; the user should see the
+        # most recent quota that tripped.
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_rate_limit(model_alias="albert-code", limit_type="tpm")
+        throttler.record_rate_limit(model_alias="albert-code", limit_type="rpm")
+        assert throttler.last_limit_type("albert-code") == "rpm"
+
+    def test_per_model_isolation(self) -> None:
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_rate_limit(model_alias="albert-code", limit_type="tpm")
+        throttler.record_rate_limit(model_alias="albert-large", limit_type="rpd")
+        assert throttler.last_limit_type("albert-code") == "tpm"
+        assert throttler.last_limit_type("albert-large") == "rpd"

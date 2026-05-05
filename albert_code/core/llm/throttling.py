@@ -135,6 +135,11 @@ class Throttler:
         self._consecutive_429_per_model: dict[str, int] = {}
         # primary_alias -> fallback active until (monotonic seconds, 0 if inactive)
         self._fallback_until: dict[str, float] = {}
+        # primary_alias -> last detected limit type ("tpm" / "rpm" / "tpd"
+        # / "rpd"). Set by record_rate_limit when the 429 body identifies
+        # the quota that tripped, read by the agent loop when arming the
+        # auto-fallback so the chat message can name the limit.
+        self._last_limit_type_per_model: dict[str, str] = {}
         # Pre-call debounce: timestamp of the last acquired slot, used to
         # enforce a minimum 60/rpm + epsilon spacing between calls (Simon
         # Roux's AlbertCode does the same in api.py:_wait_for_slot).
@@ -255,6 +260,7 @@ class Throttler:
         *,
         model_alias: str | None = None,
         retry_after_seconds: float | None = None,
+        limit_type: str | None = None,
     ) -> None:
         """Called when the upstream returned 429.
 
@@ -265,6 +271,10 @@ class Throttler:
         If `retry_after_seconds` is provided, future `acquire()` calls will
         also wait for that block to expire (in addition to rolling-window
         and debounce constraints).
+
+        If `limit_type` is provided (one of "tpm" / "rpm" / "tpd" / "rpd"),
+        it is stored per model so the agent loop can surface which quota
+        tripped when arming the auto-fallback.
         """
         self._rate_limit_events.add(1)
         recent = self._rate_limit_events.total()
@@ -278,6 +288,15 @@ class Throttler:
         self._consecutive_429_per_model[model_alias] = (
             self._consecutive_429_per_model.get(model_alias, 0) + 1
         )
+        if limit_type is not None:
+            self._last_limit_type_per_model[model_alias] = limit_type
+
+    def last_limit_type(self, model_alias: str) -> str | None:
+        """Return the last detected quota type for `model_alias`, or None.
+
+        Cleared by `clear_consecutive_429` after a successful call.
+        """
+        return self._last_limit_type_per_model.get(model_alias)
 
     def usage_snapshot(self, *, model_name: str | None = None) -> UsageSnapshot:
         """Live counters for the /rpm slash command.
@@ -350,6 +369,7 @@ class Throttler:
         if model_alias is None:
             return
         self._consecutive_429_per_model.pop(model_alias, None)
+        self._last_limit_type_per_model.pop(model_alias, None)
 
     def is_fallback_trigger_reached(self, model_alias: str | None) -> bool:
         """Pure getter: True if `model_alias` has accumulated enough

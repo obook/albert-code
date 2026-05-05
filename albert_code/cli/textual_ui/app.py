@@ -890,19 +890,65 @@ class VibeApp(App):  # noqa: PLR0904
         await self._mount_and_scroll(UserCommandMessage(status_text))
 
     def _on_fallback_event(
-        self, kind: str, message: str, remaining_seconds: float
+        self,
+        kind: str,
+        message: str,
+        remaining_seconds: float,
+        limit_type: str | None = None,
     ) -> None:
-        """Display a Textual toast when the auto-fallback toggles.
+        """Surface auto-fallback transitions both as a toast and in the chat.
 
         `kind` is "activated" or "restored". `remaining_seconds` is the
         original fallback window length on activation, 0 on restore.
+        `limit_type` is one of "tpm" / "rpm" / "tpd" / "rpd" or None when
+        the 429 body didn't identify the quota.
         """
-        del remaining_seconds  # informational, conveyed via `message`
         severity = "warning" if kind == "activated" else "information"
         title = (
             "Auto-fallback activated" if kind == "activated" else "Auto-fallback ended"
         )
         self.notify(message, title=title, severity=severity, timeout=8)
+
+        try:
+            primary = self.config.get_active_model()
+        except ValueError:
+            return
+        fallback_alias = primary.fallback_model or "(unknown)"
+
+        if kind == "activated":
+            duration = max(1, int(remaining_seconds))
+            quota_clause = self._format_limit_clause(limit_type)
+            body = (
+                f"## Auto-fallback activated (auto-fallback: ON)\n\n"
+                f"Rate limit hit on `{primary.alias}`{quota_clause}. "
+                f"Requests are redirected to `{fallback_alias}` for ~{duration}s, "
+                f"then the primary model will be restored automatically."
+            )
+        else:
+            body = (
+                f"## Auto-fallback ended\n\nPrimary model `{primary.alias}` restored."
+            )
+
+        self.run_worker(
+            self._mount_and_scroll(UserCommandMessage(body)), exclusive=False
+        )
+
+    @staticmethod
+    def _format_limit_clause(limit_type: str | None) -> str:
+        """Render the parenthetical " (tpm: tokens per minute)" suffix for
+        the fallback-activation chat message. Empty string when the 429
+        body didn't identify the quota.
+        """
+        labels = {
+            "tpm": "tokens per minute",
+            "rpm": "requests per minute",
+            "tpd": "tokens per day",
+            "rpd": "requests per day",
+        }
+        label = labels.get(limit_type or "")
+        if not label:
+            return ""
+        return f" ({limit_type}: {label})"
 
     def _refresh_model_label(self) -> None:
         """Re-render the `#bottom-model` widget from the live config + agent_loop.
