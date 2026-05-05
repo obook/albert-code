@@ -42,9 +42,13 @@ class Banner(Static):
 
             with Vertical(id="banner-info"):
                 with Horizontal(classes="banner-line"):
-                    yield NoMarkupStatic("", id="banner-models-count")
+                    yield NoMarkupStatic(
+                        "", id="banner-models-count", classes="banner-meta"
+                    )
                 with Horizontal(classes="banner-line"):
-                    yield NoMarkupStatic("", id="banner-extras-count")
+                    yield NoMarkupStatic(
+                        "", id="banner-extras-count", classes="banner-meta"
+                    )
                 with Horizontal(classes="banner-line"):
                     yield NoMarkupStatic("Type ", classes="banner-meta")
                     yield NoMarkupStatic("/help", classes="banner-cmd")
@@ -80,6 +84,5 @@ class Banner(Static):
         m = self.state.mcp_servers_count
         s = self.state.skills_count
         return (
-            f"{m} MCP server{'s' if m != 1 else ''}"
-            f" · {s} skill{'s' if s != 1 else ''}"
+            f"{m} MCP server{'s' if m != 1 else ''} · {s} skill{'s' if s != 1 else ''}"
         )
