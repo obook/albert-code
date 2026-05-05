@@ -10,7 +10,7 @@ class TestParseLimitType:
     auto-fallback chat message can name which limit tripped. The function
     is regex-based and fragile by nature: this suite locks in the wordings
     Albert is known to use, plus the precedence rules that prevent
-    "tokens per day" from being mis-classified as `tpm`.
+    "tokens per day" from being misclassified as `tpm`.
     """
 
     @pytest.mark.parametrize(

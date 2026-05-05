@@ -35,8 +35,8 @@
     .terminal-r1 { fill: #c5c8c6 }
 .terminal-r2 { fill: #318ce7 }
 .terminal-r3 { fill: #ffffff }
-.terminal-r4 { fill: #68a0b3 }
-.terminal-r5 { fill: #ed2939 }
+.terminal-r4 { fill: #ed2939 }
+.terminal-r5 { fill: #68a0b3 }
 .terminal-r6 { fill: #6a6af4 }
 .terminal-r7 { fill: #6a6af4;font-weight: bold }
 .terminal-r8 { fill: #98a84b }
@@ -182,9 +182,9 @@
 </text><text class="terminal-r2" x="0" y="361.6" textLength="378.2" clip-path="url(#terminal-line-14)">&#160;&#160;&#160;&#160;_&#160;&#160;&#160;&#160;_&#160;_&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;_&#160;&#160;&#160;</text><text class="terminal-r1" x="1464" y="361.6" textLength="12.2" clip-path="url(#terminal-line-14)">
 </text><text class="terminal-r2" x="0" y="386" textLength="378.2" clip-path="url(#terminal-line-15)">&#160;&#160;&#160;/&#160;\&#160;&#160;|&#160;|&#160;|__&#160;&#160;&#160;___&#160;_&#160;__|&#160;|_&#160;</text><text class="terminal-r1" x="1464" y="386" textLength="12.2" clip-path="url(#terminal-line-15)">
 </text><text class="terminal-r3" x="0" y="410.4" textLength="378.2" clip-path="url(#terminal-line-16)">&#160;&#160;/&#160;_&#160;\&#160;|&#160;|&#160;&#x27;_&#160;\&#160;/&#160;_&#160;\&#160;&#x27;__|&#160;__|</text><text class="terminal-r1" x="1464" y="410.4" textLength="12.2" clip-path="url(#terminal-line-16)">
-</text><text class="terminal-r3" x="0" y="434.8" textLength="378.2" clip-path="url(#terminal-line-17)">&#160;/&#160;___&#160;\|&#160;|&#160;|_)&#160;|&#160;&#160;__/&#160;|&#160;&#160;|&#160;|_&#160;</text><text class="terminal-r1" x="402.6" y="434.8" textLength="61" clip-path="url(#terminal-line-17)">Type&#160;</text><text class="terminal-r4" x="463.6" y="434.8" textLength="61" clip-path="url(#terminal-line-17)">/help</text><text class="terminal-r1" x="524.6" y="434.8" textLength="256.2" clip-path="url(#terminal-line-17)">&#160;for&#160;more&#160;information</text><text class="terminal-r1" x="1464" y="434.8" textLength="12.2" clip-path="url(#terminal-line-17)">
-</text><text class="terminal-r5" x="0" y="459.2" textLength="378.2" clip-path="url(#terminal-line-18)">/_/&#160;&#160;&#160;\_\_|_.__/&#160;\___|_|&#160;&#160;&#160;\__|</text><text class="terminal-r1" x="1464" y="459.2" textLength="12.2" clip-path="url(#terminal-line-18)">
-</text><text class="terminal-r5" x="0" y="483.6" textLength="353.8" clip-path="url(#terminal-line-19)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;code&#160;v2.3.0</text><text class="terminal-r1" x="1464" y="483.6" textLength="12.2" clip-path="url(#terminal-line-19)">
+</text><text class="terminal-r3" x="0" y="434.8" textLength="378.2" clip-path="url(#terminal-line-17)">&#160;/&#160;___&#160;\|&#160;|&#160;|_)&#160;|&#160;&#160;__/&#160;|&#160;&#160;|&#160;|_&#160;</text><text class="terminal-r1" x="402.6" y="434.8" textLength="85.4" clip-path="url(#terminal-line-17)">1&#160;model</text><text class="terminal-r1" x="1464" y="434.8" textLength="12.2" clip-path="url(#terminal-line-17)">
+</text><text class="terminal-r4" x="0" y="459.2" textLength="378.2" clip-path="url(#terminal-line-18)">/_/&#160;&#160;&#160;\_\_|_.__/&#160;\___|_|&#160;&#160;&#160;\__|</text><text class="terminal-r1" x="402.6" y="459.2" textLength="292.8" clip-path="url(#terminal-line-18)">0&#160;MCP&#160;servers&#160;·&#160;0&#160;skills</text><text class="terminal-r1" x="1464" y="459.2" textLength="12.2" clip-path="url(#terminal-line-18)">
+</text><text class="terminal-r4" x="0" y="483.6" textLength="353.8" clip-path="url(#terminal-line-19)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;code&#160;v2.3.0</text><text class="terminal-r1" x="402.6" y="483.6" textLength="61" clip-path="url(#terminal-line-19)">Type&#160;</text><text class="terminal-r5" x="463.6" y="483.6" textLength="61" clip-path="url(#terminal-line-19)">/help</text><text class="terminal-r1" x="524.6" y="483.6" textLength="256.2" clip-path="url(#terminal-line-19)">&#160;for&#160;more&#160;information</text><text class="terminal-r1" x="1464" y="483.6" textLength="12.2" clip-path="url(#terminal-line-19)">
 </text><text class="terminal-r1" x="1464" y="508" textLength="12.2" clip-path="url(#terminal-line-20)">
 </text><text class="terminal-r1" x="1464" y="532.4" textLength="12.2" clip-path="url(#terminal-line-21)">
 </text><text class="terminal-r6" x="0" y="556.8" textLength="12.2" clip-path="url(#terminal-line-22)">┃</text><text class="terminal-r7" x="24.4" y="556.8" textLength="231.8" clip-path="url(#terminal-line-22)">What&#160;is&#160;the&#160;answer?</text><text class="terminal-r1" x="1464" y="556.8" textLength="12.2" clip-path="url(#terminal-line-22)">
@@ -200,7 +200,7 @@
 </text><text class="terminal-r10" x="0" y="800.8" textLength="12.2" clip-path="url(#terminal-line-32)">│</text><text class="terminal-r10" x="1451.8" y="800.8" textLength="12.2" clip-path="url(#terminal-line-32)">│</text><text class="terminal-r1" x="1464" y="800.8" textLength="12.2" clip-path="url(#terminal-line-32)">
 </text><text class="terminal-r10" x="0" y="825.2" textLength="12.2" clip-path="url(#terminal-line-33)">│</text><text class="terminal-r10" x="1451.8" y="825.2" textLength="12.2" clip-path="url(#terminal-line-33)">│</text><text class="terminal-r1" x="1464" y="825.2" textLength="12.2" clip-path="url(#terminal-line-33)">
 </text><text class="terminal-r10" x="0" y="849.6" textLength="1464" clip-path="url(#terminal-line-34)">└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</text><text class="terminal-r1" x="1464" y="849.6" textLength="12.2" clip-path="url(#terminal-line-34)">
-</text><text class="terminal-r4" x="707.6" y="874" textLength="524.6" clip-path="url(#terminal-line-35)">⚙&#160;&#160;devstral-latest&#160;(albert-code-cli-latest)</text><text class="terminal-r10" x="1256.6" y="874" textLength="207.4" clip-path="url(#terminal-line-35)">0%&#160;of&#160;200k&#160;tokens</text>
+</text><text class="terminal-r5" x="707.6" y="874" textLength="524.6" clip-path="url(#terminal-line-35)">⚙&#160;&#160;devstral-latest&#160;(albert-code-cli-latest)</text><text class="terminal-r10" x="1256.6" y="874" textLength="207.4" clip-path="url(#terminal-line-35)">0%&#160;of&#160;200k&#160;tokens</text>
     </g>
     </g>
 </svg>
