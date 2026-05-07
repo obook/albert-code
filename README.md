@@ -6,7 +6,7 @@
 
 **Assistant IA de programmation en ligne de commande, propulsé par l'API Albert.**
 
-> ⚠️ **Projet non officiel et expérimental.** Ce projet n'est affilié ni à la DINUM ni à Mistral AI. Il s'agit d'un fork personnel de [Mistral Vibe](https://github.com/mistralai/mistral-vibe), adapté pour fonctionner avec l'[API Albert](https://albert.api.etalab.gouv.fr). Aucune garantie de stabilité ni de support.
+> ⚠️ **Projet non officiel et expérimental.** Ce projet n'est affilié ni à la DINUM ni à Mistral AI. Il s'agit d'un fork de [simonaszilinskas/albert-code](https://github.com/simonaszilinskas/albert-code), lui-même fork de [Mistral Vibe](https://github.com/mistralai/mistral-vibe), adapté pour fonctionner avec l'[API Albert](https://albert.api.etalab.gouv.fr). Aucune garantie de stabilité ni de support.
 
 ## 1 - Obtention de la clé API Albert
 
@@ -72,7 +72,20 @@ Les documents techniques détaillés sont dans le dossier [`docs/`](docs/) :
 
 ## Remerciements
 
-Ce fork s'inspire du projet [AlbertCode](https://github.com/XenocodeRCE/AlbertCode) de **Simon Roux** pour plusieurs idées clés liées à l'API Albert :
+### Projet amont
+
+Ce dépôt est un fork de [simonaszilinskas/albert-code](https://github.com/simonaszilinskas/albert-code). Merci à ses auteurs et contributeurs :
+
+- [mgesbert](https://github.com/mgesbert)
+- [simonaszilinskas](https://github.com/simonaszilinskas)
+- [qtrrb](https://github.com/qtrrb)
+- [michelTho](https://github.com/michelTho)
+- [Nemtecl](https://github.com/Nemtecl)
+- [VinceOPS](https://github.com/VinceOPS)
+
+### Inspirations
+
+Ce fork s'inspire également du projet [AlbertCode](https://github.com/XenocodeRCE/AlbertCode) de **Simon Roux** pour plusieurs idées clés liées à l'API Albert :
 
 - **Auto-fallback de modèle sur 429 répétés** : après deux 429 consécutifs sur le modèle principal, bascule automatique vers un modèle de secours pendant 60 s puis retour.
 - **Jauge RPM live** : commande slash `/rpm` qui affiche la consommation `requêtes/limite (%) [###···]` du modèle actif sur une fenêtre glissante de 60 s.
