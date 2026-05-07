@@ -136,11 +136,17 @@ def is_dangerous_directory(path: Path | str = ".") -> tuple[bool, str]:
 
 
 def get_user_agent(backend: Backend | None) -> str:
-    # The user-agent is sent in HTTP headers to LLM providers. Some providers
-    # (notably Albert) appear to route requests to different rate-limit tiers
-    # based on the user-agent. Keep the historical `Mistral-Vibe/<version>`
-    # value here so downstream routing remains stable across the upstream rename.
-    user_agent = f"Mistral-Vibe/{__version__}"
+    # In May 2026 (commit 3ff24ad) we observed an Albert quota
+    # regression after renaming the UA from "Mistral-Vibe/<version>"
+    # to "albert-code/<version>", and reverted as a workaround.
+    # Re-tested in November 2026 with two separate UAs
+    # ("python-httpx/<version>" and "albert-code/<version>"): both
+    # behave identically to "Mistral-Vibe", so the May regression was
+    # a coincidence (likely an unrelated server-side change), not a
+    # UA-routing effect. This matches the public limiter source
+    # (etalab-ia/OpenGateLLM, api/helpers/_limiter.py) which keys
+    # rate limits on (type, user_id, router_id) only.
+    user_agent = f"albert-code/{__version__}"
     if backend == Backend.MISTRAL:
         mistral_sdk_prefix = "mistral-client-python/"
         user_agent = f"{mistral_sdk_prefix}{user_agent}"
