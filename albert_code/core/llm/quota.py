@@ -12,7 +12,7 @@ import os
 from typing import TYPE_CHECKING, NamedTuple
 
 import httpx
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
     from albert_code.core.config import ProviderConfig
@@ -26,9 +26,11 @@ ALBERT_INFO_PATH = "/me/info"
 class RouterLimit(BaseModel):
     """One quota row from /v1/me/info."""
 
-    model_config = {"extra": "ignore"}
+    # Albert renamed `router` -> `router_id` in /v1/me/info; accept both so
+    # the parser stays compatible with old and new server versions.
+    model_config = {"extra": "ignore", "populate_by_name": True}
 
-    router: int
+    router: int = Field(validation_alias=AliasChoices("router", "router_id"))
     type: str
     value: int | None = None
 

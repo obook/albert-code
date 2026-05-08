@@ -70,6 +70,23 @@ def test_account_info_validates_minimal_payload() -> None:
     assert info.limits == []
 
 
+def test_account_info_accepts_router_id_alias() -> None:
+    # Albert renamed `router` to `router_id` in /v1/me/info; both shapes
+    # must continue to parse so the throttler keeps working across the
+    # server-side rollout.
+    info = AlbertAccountInfo.model_validate({
+        "limits": [
+            {"router_id": 342, "type": "rpm", "value": 500},
+            {"router_id": 342, "type": "tpm", "value": None},
+        ],
+    })
+    assert len(info.limits) == 2
+    assert info.limits[0].router == 342
+    assert info.limits[0].type == "rpm"
+    assert info.limits[0].value == 500
+    assert info.limits[1].value is None
+
+
 @pytest.mark.asyncio
 async def test_fetch_albert_quotas_returns_none_for_non_albert(
     monkeypatch: pytest.MonkeyPatch,
