@@ -85,7 +85,7 @@ from albert_code.cli.update_notifier.update import do_update
 from albert_code.core.agent_loop import AgentLoop, TeleportError
 from albert_code.core.agents import AgentProfile
 from albert_code.core.autocompletion.path_prompt_adapter import render_path_prompt
-from albert_code.core.config import VibeConfig
+from albert_code.core.config import ModelConfig, VibeConfig
 from albert_code.core.logger import logger
 from albert_code.core.paths.config_paths import HISTORY_FILE
 from albert_code.core.session.session_loader import SessionLoader
@@ -967,6 +967,27 @@ class VibeApp(App):  # noqa: PLR0904
         except Exception:
             pass
 
+    def _effective_active_model(self) -> tuple[ModelConfig, bool] | None:
+        """Resolve the model that requests are actually routed to.
+
+        Returns `(model, is_fallback)` where `model` is the configured
+        primary unless an auto-fallback has been activated by the agent
+        loop, in which case it's the fallback target. None when the
+        primary itself is unresolvable. Used by every UI surface that
+        reflects current usage (gauge, daily poller, label, /limits) so
+        they don't drift apart during a fallback window.
+        """
+        try:
+            primary = self.config.get_active_model()
+        except ValueError:
+            return None
+        last_alias = getattr(self.agent_loop, "_last_resolved_model_alias", None)
+        if last_alias and last_alias != primary.alias:
+            for candidate in self.config.models:
+                if candidate.alias == last_alias:
+                    return candidate, True
+        return primary, False
+
     def _format_model_label(self) -> str:
         """Format the active model for the bottom bar as `⚙  alias (short-name)`.
 
@@ -983,28 +1004,17 @@ class VibeApp(App):  # noqa: PLR0904
           shows the fallback model so the user knows requests are
           temporarily routed elsewhere.
         """
-        try:
-            primary = self.config.get_active_model()
-        except ValueError:
+        resolved = self._effective_active_model()
+        if resolved is None:
             return f"⚙  {self.config.active_model}"
-
-        # Pick the model that the agent loop actually resolved last - this
-        # reflects the auto-fallback even though the config's active_model
-        # hasn't changed.
-        effective = primary
-        last_alias = getattr(self.agent_loop, "_last_resolved_model_alias", None)
-        if last_alias and last_alias != primary.alias:
-            for candidate in self.config.models:
-                if candidate.alias == last_alias:
-                    effective = candidate
-                    break
+        effective, is_fallback = resolved
 
         alias = effective.alias or ""
         short_name = (
             effective.name.split("/")[-1] if "/" in effective.name else effective.name
         )
 
-        prefix = "↳" if effective is not primary else "⚙"
+        prefix = "↳" if is_fallback else "⚙"
         if not alias or alias == short_name:
             return f"{prefix}  {short_name}"
         return f"{prefix}  {alias} ({short_name})"
@@ -1287,6 +1297,12 @@ class VibeApp(App):  # noqa: PLR0904
             if self._banner:
                 self._banner.set_state(base_config, self.agent_loop.skill_manager)
             self._refresh_model_label()
+            # The 3 s gauge tick and the 30 s daily poller would both
+            # eventually catch up, but firing one of each immediately
+            # avoids a stale window where the gauge still shows the old
+            # model's limits and the rpd/tpd lines briefly disappear.
+            self._refresh_quota_display()
+            self.run_worker(self._poll_daily_usage_once(), exclusive=False)
             await self._mount_and_scroll(UserCommandMessage("Configuration reloaded."))
         except Exception as e:
             await self._mount_and_scroll(
@@ -1825,15 +1841,13 @@ class VibeApp(App):  # noqa: PLR0904
         # per-minute snapshot. Poll every 30 s in a separate worker.
         self.run_worker(self._poll_daily_usage_loop(), exclusive=False)
 
-    async def _poll_daily_usage_loop(self) -> None:
-        """Periodically refresh the rpd/tpd counters from /v1/me/usage.
-
-        Runs every 30 s. Each tick fetches the recent usage events, sums
-        today's requests and prompt tokens for the active model, and
-        pushes them into the shared throttler. Silent on any failure.
+    async def _poll_daily_usage_once(self) -> None:
+        """Single tick of the /v1/me/usage refresh — extracted from the
+        periodic loop so we can also fire it on demand right after a
+        model change (manual /config or auto-fallback), avoiding a 30 s
+        gap before the rpd/tpd lines reappear for the new model.
+        Silent on any failure; the gauge stays whatever it was.
         """
-        import asyncio
-
         from albert_code.core.llm.quota import (
             count_requests_today,
             fetch_albert_usage,
@@ -1843,30 +1857,41 @@ class VibeApp(App):  # noqa: PLR0904
         )
         from albert_code.core.llm.throttling import get_throttler
 
+        try:
+            resolved = self._effective_active_model()
+            if resolved is None:
+                return
+            effective, _ = resolved
+            provider = self.config.get_provider_for_model(effective)
+            if not is_albert_provider(provider):
+                return
+            events = await fetch_albert_usage(
+                provider, since_timestamp=midnight_utc_timestamp()
+            )
+            if events is None:
+                return
+            throttler = get_throttler(provider)
+            # /v1/me/usage events carry the canonical id, never the alias —
+            # so we must resolve before filtering.
+            canonical = throttler.resolve_alias(effective.name) or effective.name
+            rpd_used = count_requests_today(events, canonical)
+            tpd_used = sum_prompt_tokens_today(events, canonical)
+            throttler.update_daily_usage(
+                canonical, rpd_used=rpd_used, tpd_used=tpd_used
+            )
+            self._refresh_quota_display()
+        except Exception:
+            pass
+
+    async def _poll_daily_usage_loop(self) -> None:
+        """Periodically refresh the rpd/tpd counters from /v1/me/usage.
+
+        Runs every 30 s, delegating each tick to `_poll_daily_usage_once`.
+        """
+        import asyncio
+
         while True:
-            try:
-                active_model = self.config.get_active_model()
-                provider = self.config.get_provider_for_model(active_model)
-                if is_albert_provider(provider):
-                    events = await fetch_albert_usage(
-                        provider, since_timestamp=midnight_utc_timestamp()
-                    )
-                    if events is not None:
-                        throttler = get_throttler(provider)
-                        # /v1/me/usage events carry the canonical id, never
-                        # the alias - so we must resolve before filtering.
-                        canonical = (
-                            throttler.resolve_alias(active_model.name)
-                            or active_model.name
-                        )
-                        rpd_used = count_requests_today(events, canonical)
-                        tpd_used = sum_prompt_tokens_today(events, canonical)
-                        throttler.update_daily_usage(
-                            canonical, rpd_used=rpd_used, tpd_used=tpd_used
-                        )
-                        self._refresh_quota_display()
-            except Exception:
-                pass
+            await self._poll_daily_usage_once()
             await asyncio.sleep(30.0)
 
     def _refresh_quota_display(self) -> None:
@@ -1885,14 +1910,29 @@ class VibeApp(App):  # noqa: PLR0904
             from albert_code.core.llm.quota import is_albert_provider
             from albert_code.core.llm.throttling import get_throttler
 
-            active_model = self.config.get_active_model()
-            provider = self.config.get_provider_for_model(active_model)
+            resolved = self._effective_active_model()
+            if resolved is None:
+                widget.clear()
+                return
+            effective, _ = resolved
+            provider = self.config.get_provider_for_model(effective)
             if not is_albert_provider(provider):
                 widget.clear()
                 return
             throttler = get_throttler(provider)
-            snap = throttler.usage_snapshot(model_name=active_model.name)
+            snap = throttler.usage_snapshot(model_name=effective.name)
             widget.update_from_snapshot(snap)
+            # First time we display this model (e.g. auto-fallback just
+            # routed elsewhere), kick a daily-usage poll so rpd/tpd
+            # lines appear immediately instead of waiting for the next
+            # 30 s tick.
+            previous = getattr(self, "_last_displayed_model_name", None)
+            if previous != effective.name:
+                self._last_displayed_model_name = effective.name
+                if previous is not None:
+                    self.run_worker(
+                        self._poll_daily_usage_once(), exclusive=False
+                    )
         except Exception:
             widget.clear()
 
