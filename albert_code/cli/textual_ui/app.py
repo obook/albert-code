@@ -1738,6 +1738,7 @@ class VibeApp(App):  # noqa: PLR0904
             documented_limits_for,
             fetch_albert_usage,
             is_albert_provider,
+            midnight_utc_timestamp,
             sum_prompt_tokens_today,
         )
         from albert_code.core.llm.quota_state import (
@@ -1770,8 +1771,12 @@ class VibeApp(App):  # noqa: PLR0904
                     f"`{active_model.name}`, may be unaffected)."
                 )
 
-        # A - live /me/usage estimation
-        usage = await fetch_albert_usage(provider)
+        # A - live /me/usage estimation. Paginate from today's midnight
+        # UTC so we count every call of the day; the server-side default
+        # page is just 10 events, which silently undercounts heavy days.
+        usage = await fetch_albert_usage(
+            provider, since_timestamp=midnight_utc_timestamp()
+        )
         documented = documented_limits_for(active_model.name)
         if usage is not None and documented is not None and documented.exp.tpd:
             used_today = sum_prompt_tokens_today(usage, active_model.name)
@@ -1833,6 +1838,7 @@ class VibeApp(App):  # noqa: PLR0904
             count_requests_today,
             fetch_albert_usage,
             is_albert_provider,
+            midnight_utc_timestamp,
             sum_prompt_tokens_today,
         )
         from albert_code.core.llm.throttling import get_throttler
@@ -1842,7 +1848,9 @@ class VibeApp(App):  # noqa: PLR0904
                 active_model = self.config.get_active_model()
                 provider = self.config.get_provider_for_model(active_model)
                 if is_albert_provider(provider):
-                    events = await fetch_albert_usage(provider)
+                    events = await fetch_albert_usage(
+                        provider, since_timestamp=midnight_utc_timestamp()
+                    )
                     if events is not None:
                         throttler = get_throttler(provider)
                         # /v1/me/usage events carry the canonical id, never

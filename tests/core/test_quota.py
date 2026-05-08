@@ -10,6 +10,7 @@ from albert_code.core.llm.quota import (
     RouterLimit,
     fetch_albert_quotas,
     fetch_albert_quotas_detailed,
+    fetch_albert_usage,
     group_limits_by_router,
     is_albert_provider,
 )
@@ -191,3 +192,92 @@ async def test_fetch_albert_quotas_detailed_explains_http_error(
     assert info is None
     assert error is not None
     assert "404" in error
+
+
+def _usage_page(n: int) -> dict[str, object]:
+    return {
+        "object": "list",
+        "data": [
+            {
+                "object": "me.usage",
+                "model": "openai/gpt-oss-120b",
+                "usage": {"prompt_tokens": 1000},
+                "created": 1_778_261_739,
+            }
+            for _ in range(n)
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_fetch_albert_usage_legacy_single_call(
+    monkeypatch: pytest.MonkeyPatch, respx_mock: respx.MockRouter
+) -> None:
+    # Without `since_timestamp` we keep the legacy single-page behaviour.
+    # Even if the server returned a full 100-event page, we MUST NOT
+    # paginate, to stay back-compatible with the original signature.
+    monkeypatch.setenv("TEST_ALBERT_KEY", "secret")
+    route = respx_mock.get("http://test/v1/me/usage").mock(
+        return_value=httpx.Response(200, json=_usage_page(100))
+    )
+    events = await fetch_albert_usage(_make_provider())
+    assert events is not None
+    assert len(events) == 100
+    assert route.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_fetch_albert_usage_paginates_until_short_page(
+    monkeypatch: pytest.MonkeyPatch, respx_mock: respx.MockRouter
+) -> None:
+    # Reproduces the user-reported scenario: the day has 230 events,
+    # the server caps page size at 100, so the previous single-call
+    # implementation only saw 10 of them and the tpd gauge undercounted
+    # by 5x. With pagination we must walk all three pages.
+    monkeypatch.setenv("TEST_ALBERT_KEY", "secret")
+    responses = [
+        httpx.Response(200, json=_usage_page(100)),
+        httpx.Response(200, json=_usage_page(100)),
+        httpx.Response(200, json=_usage_page(30)),
+    ]
+    route = respx_mock.get("http://test/v1/me/usage").mock(side_effect=responses)
+    events = await fetch_albert_usage(_make_provider(), since_timestamp=1_000_000)
+    assert events is not None
+    assert len(events) == 230
+    assert route.call_count == 3
+    offsets = [c.request.url.params.get("offset") for c in route.calls]
+    assert offsets == ["0", "100", "200"]
+    # start_time must be forwarded on every page so the server keeps
+    # filtering consistently (otherwise pages 2+ would drift).
+    start_times = {c.request.url.params.get("start_time") for c in route.calls}
+    assert start_times == {"1000000"}
+    limits = {c.request.url.params.get("limit") for c in route.calls}
+    assert limits == {"100"}
+
+
+@pytest.mark.asyncio
+async def test_fetch_albert_usage_stops_on_first_short_page(
+    monkeypatch: pytest.MonkeyPatch, respx_mock: respx.MockRouter
+) -> None:
+    # When the day has fewer events than the page size, a single call
+    # is enough — we must NOT issue a wasteful empty second page.
+    monkeypatch.setenv("TEST_ALBERT_KEY", "secret")
+    route = respx_mock.get("http://test/v1/me/usage").mock(
+        return_value=httpx.Response(200, json=_usage_page(42))
+    )
+    events = await fetch_albert_usage(_make_provider(), since_timestamp=1_000_000)
+    assert events is not None
+    assert len(events) == 42
+    assert route.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_fetch_albert_usage_returns_none_on_http_error(
+    monkeypatch: pytest.MonkeyPatch, respx_mock: respx.MockRouter
+) -> None:
+    monkeypatch.setenv("TEST_ALBERT_KEY", "secret")
+    respx_mock.get("http://test/v1/me/usage").mock(
+        return_value=httpx.Response(500, json={"detail": "boom"})
+    )
+    assert await fetch_albert_usage(_make_provider()) is None
+

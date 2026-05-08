@@ -64,33 +64,84 @@ def is_albert_provider(provider: ProviderConfig) -> bool:
     return provider.name == ALBERT_PROVIDER_NAME
 
 
+def midnight_utc_timestamp() -> int:
+    """Today's 00:00 UTC as a Unix timestamp.
+
+    Albert daily quotas (rpd/tpd) reset at this boundary, so the tpd/rpd
+    gauges only need events past this point.
+    """
+    import datetime as dt
+
+    return int(
+        dt.datetime.now(dt.UTC)
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .timestamp()
+    )
+
+
+# Server-imposed page size cap (see /v1/me/usage OpenAPI schema). Higher
+# values are rejected with 422.
+_USAGE_PAGE_LIMIT = 100
+# Hard ceiling on the number of pages we'll fetch, to prevent a runaway
+# loop if the server ever stops honouring the "fewer rows than limit
+# means last page" convention. 100 pages * 100 rows = 10 000 events,
+# more than enough for one day at the documented EXP tier (1000 rpd).
+_USAGE_MAX_PAGES = 100
+
+
 async def fetch_albert_usage(
-    provider: ProviderConfig, *, timeout: float = 10.0
+    provider: ProviderConfig,
+    *,
+    since_timestamp: int | None = None,
+    timeout: float = 10.0,
 ) -> list[dict[str, object]] | None:
     """Fetch /v1/me/usage. Returns the list of usage events, or None on failure.
 
-    Albert returns a list of recent calls with their token counts; the
-    payload schema is `{object: "list", data: [...]}`. We just hand back
-    `data` as a list of dicts and let callers slice what they need.
+    Albert returns `{object: "list", data: [...]}` with a default page
+    size of 10 (cap 100). When `since_timestamp` is provided, we pass it
+    as `start_time` and paginate via `offset` until the server returns a
+    short page — this is required for the tpd/rpd gauges to be accurate
+    once the user has done more than 10 calls in the day. Without
+    `since_timestamp` the function keeps its legacy single-page
+    behaviour for back-compat.
     """
     if _check_albert_preconditions(provider) is not None:
         return None
     api_key = os.getenv(provider.api_key_env_var) or ""
     url = f"{provider.api_base.rstrip('/')}/me/usage"
     headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+    all_events: list[dict[str, object]] = []
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
-            response = await client.get(url, headers=headers)
-            response.raise_for_status()
-            payload = response.json()
+            offset = 0
+            for _ in range(_USAGE_MAX_PAGES):
+                params: dict[str, int] = {
+                    "limit": _USAGE_PAGE_LIMIT,
+                    "offset": offset,
+                }
+                if since_timestamp is not None:
+                    params["start_time"] = since_timestamp
+                response = await client.get(url, headers=headers, params=params)
+                response.raise_for_status()
+                payload = response.json()
+                data = payload.get("data") if isinstance(payload, dict) else None
+                if not isinstance(data, list):
+                    return None
+                all_events.extend(data)
+                if since_timestamp is None or len(data) < _USAGE_PAGE_LIMIT:
+                    return all_events
+                offset += len(data)
+            logger.warning(
+                "Albert /me/usage: pagination hit safety cap (%d pages)",
+                _USAGE_MAX_PAGES,
+            )
+            return all_events
     except httpx.HTTPError as exc:
         logger.debug("Albert /me/usage fetch failed: %s", exc)
         return None
     except ValueError as exc:
         logger.debug("Albert /me/usage returned non-JSON: %s", exc)
         return None
-    data = payload.get("data") if isinstance(payload, dict) else None
-    return data if isinstance(data, list) else None
 
 
 def sum_prompt_tokens_today(
@@ -101,13 +152,7 @@ def sum_prompt_tokens_today(
     Daily quotas reset at midnight UTC, so any event before today's
     00:00 UTC doesn't consume the running counter.
     """
-    import datetime as dt
-
-    midnight_utc = (
-        dt.datetime.now(dt.UTC)
-        .replace(hour=0, minute=0, second=0, microsecond=0)
-        .timestamp()
-    )
+    midnight_utc = midnight_utc_timestamp()
     total = 0
     for event in usage_events:
         if not isinstance(event, dict):
@@ -131,13 +176,7 @@ def count_requests_today(usage_events: list[dict[str, object]], model_name: str)
     Mirror of `sum_prompt_tokens_today` for the rpd (requests per day)
     counter: each event past midnight UTC counts for one request.
     """
-    import datetime as dt
-
-    midnight_utc = (
-        dt.datetime.now(dt.UTC)
-        .replace(hour=0, minute=0, second=0, microsecond=0)
-        .timestamp()
-    )
+    midnight_utc = midnight_utc_timestamp()
     count = 0
     for event in usage_events:
         if not isinstance(event, dict):
