@@ -2064,7 +2064,17 @@ def _format_rate_limit_message(e: RateLimitError) -> str:
         )
     else:
         head = f"Rate limit exceeded on `{e.model}` ({e.provider})."
-        tail = "Use /limits to inspect your Albert quotas."
+        # The bottom-bar gauge is per-process, so a 429 can hit while it
+        # still reads near 0 — typically because another client uses the
+        # same key, or this single request exceeded the per-minute budget
+        # on its own. The gauge is now saturated post-429 (see
+        # Throttler._saturate_window), but the hint helps users who
+        # caught the error before the next refresh.
+        tail = (
+            "Likely cause: another client on the same Albert key, "
+            "or this request alone exceeded the per-minute budget. "
+            "Use /limits to inspect your Albert quotas."
+        )
     detail = f"Server: {e.detail}" if e.detail else ""
     return " ".join(part for part in (head, detail, tail) if part)
 

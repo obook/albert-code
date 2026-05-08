@@ -304,3 +304,66 @@ class TestThrottlerLimitType:
         throttler.record_rate_limit(model_alias="albert-large", limit_type="rpd")
         assert throttler.last_limit_type("albert-code") == "tpm"
         assert throttler.last_limit_type("albert-large") == "rpd"
+
+
+_QWEN = "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+
+
+class TestThrottlerSaturateOn429:
+    """A 429 with a tpm/rpm reason saturates the matching rolling window
+    so the bottom-bar gauge reflects what the server saw. Daily quota
+    limits (tpd/rpd) live in /v1/me/usage and are NOT touched here.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _reset(self) -> None:
+        reset_throttlers_for_tests()
+
+    def test_tpm_429_saturates_token_window(self) -> None:
+        # Qwen documented EXP tier: tpm = 128_000.
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        snap_before = throttler.usage_snapshot(model_name=_QWEN)
+        assert snap_before.tpm_used == 0
+        throttler.record_rate_limit(model_alias=_QWEN, limit_type="tpm")
+        snap_after = throttler.usage_snapshot(model_name=_QWEN)
+        assert snap_after.tpm_used == 128_000
+        # rpm is untouched.
+        assert snap_after.rpm_used == 0
+
+    def test_rpm_429_saturates_request_window(self) -> None:
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_rate_limit(model_alias=_QWEN, limit_type="rpm")
+        snap = throttler.usage_snapshot(model_name=_QWEN)
+        assert snap.rpm_used == 50  # Qwen EXP rpm
+        assert snap.tpm_used == 0
+
+    def test_tpd_429_does_not_touch_rolling_windows(self) -> None:
+        # Daily quotas surface via /v1/me/usage; the rolling 60s window
+        # is irrelevant for them. We must not poison the gauge with a
+        # tpd 429.
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_rate_limit(model_alias=_QWEN, limit_type="tpd")
+        snap = throttler.usage_snapshot(model_name=_QWEN)
+        assert snap.tpm_used == 0
+        assert snap.rpm_used == 0
+
+    def test_saturation_decays_with_rolling_window(self) -> None:
+        # The injected events sit in the rolling window like real usage,
+        # so they fade naturally as the 60s window slides — mirroring
+        # the server's per-minute bucket draining.
+        clock = FakeClock()
+        throttler = Throttler(_make_provider(), clock=clock)
+        throttler.record_rate_limit(model_alias=_QWEN, limit_type="tpm")
+        assert throttler.usage_snapshot(model_name=_QWEN).tpm_used == 128_000
+        clock.advance(61.0)
+        assert throttler.usage_snapshot(model_name=_QWEN).tpm_used == 0
+
+    def test_no_saturation_when_limit_unknown(self) -> None:
+        # Unknown model + uninitialised account-wide _tpm => nothing to
+        # saturate against; must stay quiet rather than crash.
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_rate_limit(
+            model_alias="completely-unknown-model", limit_type="tpm"
+        )
+        snap = throttler.usage_snapshot(model_name="completely-unknown-model")
+        assert snap.tpm_used == 0

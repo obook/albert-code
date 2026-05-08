@@ -274,7 +274,11 @@ class Throttler:
 
         If `limit_type` is provided (one of "tpm" / "rpm" / "tpd" / "rpd"),
         it is stored per model so the agent loop can surface which quota
-        tripped when arming the auto-fallback.
+        tripped when arming the auto-fallback. For "tpm"/"rpm" we also
+        saturate the matching rolling window so the bottom-bar gauge
+        reflects what the server saw — a 429 is the only signal we have
+        that a quota is full when other clients share the key, and our
+        own rejected request never reaches `record_request`.
         """
         self._rate_limit_events.add(1)
         recent = self._rate_limit_events.total()
@@ -283,6 +287,8 @@ class Throttler:
             self._blocked_until = max(
                 self._blocked_until, self._clock() + retry_after_seconds
             )
+        if limit_type in ("tpm", "rpm"):
+            self._saturate_window(limit_type, model_alias)
         if model_alias is None:
             return
         self._consecutive_429_per_model[model_alias] = (
@@ -290,6 +296,23 @@ class Throttler:
         )
         if limit_type is not None:
             self._last_limit_type_per_model[model_alias] = limit_type
+
+    def _saturate_window(self, limit_type: str, model_alias: str | None) -> None:
+        """Top up the matching rolling window to the documented cap.
+
+        Used after a 429 to align the local gauge with the server-side
+        counter. Effects fade naturally as the rolling window slides past
+        each injected event over the next 60s, mirroring how the server's
+        own per-minute bucket drains.
+        """
+        rpm, tpm = self._effective_limits(model_alias)
+        cap = tpm if limit_type == "tpm" else rpm
+        if cap is None or cap <= 0:
+            return
+        window = self._tokens if limit_type == "tpm" else self._requests
+        deficit = cap - window.total()
+        if deficit > 0:
+            window.add(deficit)
 
     def last_limit_type(self, model_alias: str) -> str | None:
         """Return the last detected quota type for `model_alias`, or None.
