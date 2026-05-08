@@ -73,8 +73,7 @@ def midnight_utc_timestamp() -> int:
     import datetime as dt
 
     return int(
-        dt.datetime
-        .now(dt.UTC)
+        dt.datetime.now(dt.UTC)
         .replace(hour=0, minute=0, second=0, microsecond=0)
         .timestamp()
     )
