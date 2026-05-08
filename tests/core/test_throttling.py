@@ -367,3 +367,54 @@ class TestThrottlerSaturateOn429:
         )
         snap = throttler.usage_snapshot(model_name="completely-unknown-model")
         assert snap.tpm_used == 0
+
+
+_GPT_OSS = "openai/gpt-oss-120b"
+
+
+class TestThrottlerPerModelWindows:
+    """The rolling rpm/tpm windows are split per canonical model id so a
+    model switch (manual via /config or auto-fallback) doesn't mix the
+    old model's recent traffic into the new model's gauge — that bug
+    used to surface as "tpm 100k/128k" right after switching to a fresh
+    model that had made no calls yet.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _reset(self) -> None:
+        reset_throttlers_for_tests()
+
+    def test_record_request_isolated_per_model(self) -> None:
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_request(
+            prompt_tokens=10_000, completion_tokens=200, model_name=_QWEN
+        )
+        qwen = throttler.usage_snapshot(model_name=_QWEN)
+        gpt = throttler.usage_snapshot(model_name=_GPT_OSS)
+        assert qwen.tpm_used == 10_200
+        assert qwen.rpm_used == 1
+        assert gpt.tpm_used == 0
+        assert gpt.rpm_used == 0
+
+    def test_429_saturation_isolated_per_model(self) -> None:
+        # A 429 on Qwen must not poison gpt-oss-120b's gauge.
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler.record_rate_limit(model_alias=_QWEN, limit_type="tpm")
+        assert throttler.usage_snapshot(model_name=_QWEN).tpm_used == 128_000
+        assert throttler.usage_snapshot(model_name=_GPT_OSS).tpm_used == 0
+
+    def test_alias_resolves_to_same_window_as_canonical(self) -> None:
+        # Calls via the alias and via the canonical id must share a
+        # single window, otherwise the gauge would split a single
+        # model's traffic across two buckets.
+        throttler = Throttler(_make_provider(), clock=FakeClock())
+        throttler._alias_to_canonical = {"openweight-code": _QWEN}
+        throttler.record_request(
+            prompt_tokens=5_000, completion_tokens=0, model_name="openweight-code"
+        )
+        throttler.record_request(
+            prompt_tokens=3_000, completion_tokens=0, model_name=_QWEN
+        )
+        snap = throttler.usage_snapshot(model_name=_QWEN)
+        assert snap.tpm_used == 8_000
+        assert snap.rpm_used == 2

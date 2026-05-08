@@ -669,9 +669,10 @@ class GenericBackend:
                 throttler.record_request(
                     prompt_tokens=chunk.usage.prompt_tokens,
                     completion_tokens=chunk.usage.completion_tokens,
+                    model_name=model.name,
                 )
             else:
-                throttler.record_request()
+                throttler.record_request(model_name=model.name)
             throttler.record_success(model_alias=model.alias)
             clear_terminal_quota_event_for_model(model.name)
             return chunk
@@ -811,6 +812,7 @@ class GenericBackend:
             throttler.record_request(
                 prompt_tokens=last_usage.prompt_tokens,
                 completion_tokens=last_usage.completion_tokens,
+                model_name=model.name,
             )
             throttler.record_success(model_alias=model.alias)
             clear_terminal_quota_event_for_model(model.name)

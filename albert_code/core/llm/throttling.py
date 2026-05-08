@@ -125,8 +125,14 @@ class Throttler:
         self._threshold = threshold
         self._clock = clock
         self._sleep = sleep or asyncio.sleep
-        self._requests = RollingWindow(clock=clock)
-        self._tokens = RollingWindow(clock=clock)
+        # Rolling windows are split per canonical model id to mirror Albert's
+        # server-side router (each model has its own per-minute bucket). A
+        # process-wide counter — the previous design — gave wrong gauges and
+        # wrong throttling decisions whenever the user switched models or an
+        # auto-fallback fired: the new model's gauge inherited the old
+        # model's count for up to 60s.
+        self._requests_by_model: dict[str, RollingWindow] = {}
+        self._tokens_by_model: dict[str, RollingWindow] = {}
         self._rate_limit_events = RollingWindow(clock=clock)
         self._rpm: int | None = None
         self._tpm: int | None = None
@@ -171,22 +177,56 @@ class Throttler:
         """
         await self._ensure_initialized()
         rpm, tpm = self._effective_limits(model_name)
+        requests_window = self._request_window(model_name)
+        tokens_window = self._token_window(model_name)
         slept_total = 0.0
         while True:
-            wait = self._compute_wait(estimated_prompt_tokens, rpm=rpm, tpm=tpm)
+            wait = self._compute_wait(
+                estimated_prompt_tokens,
+                rpm=rpm,
+                tpm=tpm,
+                requests_window=requests_window,
+                tokens_window=tokens_window,
+            )
             if wait <= 0.0:
                 self._last_slot_at = self._clock()
                 return slept_total
             logger.info(
-                "Albert throttling: sleeping %.2fs (rpm=%s/%s, tpm=%s/%s)",
+                "Albert throttling: sleeping %.2fs (rpm=%s/%s, tpm=%s/%s, model=%s)",
                 wait,
-                self._requests.total(),
+                requests_window.total(),
                 rpm,
-                self._tokens.total(),
+                tokens_window.total(),
                 tpm,
+                model_name,
             )
             await self._sleep(wait)
             slept_total += wait
+
+    def _model_key(self, model_name: str | None) -> str:
+        """Canonical key used to index per-model rolling windows.
+
+        Resolves Albert aliases to the canonical id so requests via
+        `openweight-code` and `Qwen/Qwen3-Coder-30B-A3B-Instruct` share
+        a single window.
+        """
+        return self.resolve_alias(model_name) or model_name or "<unknown>"
+
+    def _request_window(self, model_name: str | None) -> RollingWindow:
+        key = self._model_key(model_name)
+        window = self._requests_by_model.get(key)
+        if window is None:
+            window = RollingWindow(clock=self._clock)
+            self._requests_by_model[key] = window
+        return window
+
+    def _token_window(self, model_name: str | None) -> RollingWindow:
+        key = self._model_key(model_name)
+        window = self._tokens_by_model.get(key)
+        if window is None:
+            window = RollingWindow(clock=self._clock)
+            self._tokens_by_model[key] = window
+        return window
 
     def _effective_limits(
         self, model_name: str | None
@@ -206,12 +246,16 @@ class Throttler:
         return (60.0 / effective) + DEBOUNCE_EPSILON_SECONDS
 
     def record_request(
-        self, *, prompt_tokens: int = 0, completion_tokens: int = 0
+        self,
+        *,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        model_name: str | None = None,
     ) -> None:
-        self._requests.add(1)
+        self._request_window(model_name).add(1)
         used = max(0, prompt_tokens) + max(0, completion_tokens)
         if used:
-            self._tokens.add(used)
+            self._token_window(model_name).add(used)
 
     async def _ensure_initialized(self) -> None:
         if self._initialized:
@@ -309,7 +353,11 @@ class Throttler:
         cap = tpm if limit_type == "tpm" else rpm
         if cap is None or cap <= 0:
             return
-        window = self._tokens if limit_type == "tpm" else self._requests
+        window = (
+            self._token_window(model_alias)
+            if limit_type == "tpm"
+            else self._request_window(model_alias)
+        )
         deficit = cap - window.total()
         if deficit > 0:
             window.add(deficit)
@@ -355,9 +403,9 @@ class Throttler:
             model_name=model_name,
             window_seconds=int(WINDOW_SECONDS),
             rpm_limit=rpm,
-            rpm_used=self._requests.total(),
+            rpm_used=self._request_window(model_name).total(),
             tpm_limit=tpm,
-            tpm_used=self._tokens.total(),
+            tpm_used=self._token_window(model_name).total(),
             debounce_seconds=self._debounce_seconds(rpm),
             blocked_for=max(0.0, self._blocked_until - self._clock()),
             limit_source=source,
@@ -438,6 +486,8 @@ class Throttler:
         *,
         rpm: int | None = None,
         tpm: int | None = None,
+        requests_window: RollingWindow | None = None,
+        tokens_window: RollingWindow | None = None,
     ) -> float:
         if rpm is None:
             rpm = self._rpm
@@ -454,15 +504,15 @@ class Throttler:
         # Backoff window set by record_rate_limit (Retry-After).
         if self._blocked_until > now:
             waits.append(self._blocked_until - now)
-        if rpm is not None:
+        if rpm is not None and requests_window is not None:
             ceiling = max(1, int(rpm * self._threshold))
-            if self._requests.total() >= ceiling:
-                waits.append(self._requests.seconds_until_next_slot())
-        if tpm is not None:
+            if requests_window.total() >= ceiling:
+                waits.append(requests_window.seconds_until_next_slot())
+        if tpm is not None and tokens_window is not None:
             ceiling = max(1, int(tpm * self._threshold))
-            projected = self._tokens.total() + max(0, estimated_prompt_tokens)
+            projected = tokens_window.total() + max(0, estimated_prompt_tokens)
             if projected >= ceiling:
-                waits.append(self._tokens.seconds_until_next_slot())
+                waits.append(tokens_window.seconds_until_next_slot())
         return max(waits, default=0.0)
 
 
