@@ -929,15 +929,6 @@ QuotaDisplay {
     margin-right: 2;
 }
 
-QuotaDisplay.quota-warning {
-    color: ansi_yellow;
-}
-
-QuotaDisplay.quota-danger {
-    color: ansi_red;
-    text-style: bold;
-}
-
 #banner-container {
     padding: 0 1 0 0;
     width: auto;
