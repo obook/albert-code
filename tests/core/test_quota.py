@@ -79,7 +79,7 @@ def test_account_info_accepts_router_id_alias() -> None:
         "limits": [
             {"router_id": 342, "type": "rpm", "value": 500},
             {"router_id": 342, "type": "tpm", "value": None},
-        ],
+        ]
     })
     assert len(info.limits) == 2
     assert info.limits[0].router == 342
@@ -280,4 +280,3 @@ async def test_fetch_albert_usage_returns_none_on_http_error(
         return_value=httpx.Response(500, json={"detail": "boom"})
     )
     assert await fetch_albert_usage(_make_provider()) is None
-

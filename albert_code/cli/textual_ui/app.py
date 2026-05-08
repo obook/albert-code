@@ -1930,9 +1930,7 @@ class VibeApp(App):  # noqa: PLR0904
             if previous != effective.name:
                 self._last_displayed_model_name = effective.name
                 if previous is not None:
-                    self.run_worker(
-                        self._poll_daily_usage_once(), exclusive=False
-                    )
+                    self.run_worker(self._poll_daily_usage_once(), exclusive=False)
         except Exception:
             widget.clear()
 

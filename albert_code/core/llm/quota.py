@@ -73,7 +73,8 @@ def midnight_utc_timestamp() -> int:
     import datetime as dt
 
     return int(
-        dt.datetime.now(dt.UTC)
+        dt.datetime
+        .now(dt.UTC)
         .replace(hour=0, minute=0, second=0, microsecond=0)
         .timestamp()
     )
@@ -115,10 +116,7 @@ async def fetch_albert_usage(
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
             offset = 0
             for _ in range(_USAGE_MAX_PAGES):
-                params: dict[str, int] = {
-                    "limit": _USAGE_PAGE_LIMIT,
-                    "offset": offset,
-                }
+                params: dict[str, int] = {"limit": _USAGE_PAGE_LIMIT, "offset": offset}
                 if since_timestamp is not None:
                     params["start_time"] = since_timestamp
                 response = await client.get(url, headers=headers, params=params)

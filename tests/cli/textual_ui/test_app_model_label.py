@@ -12,7 +12,7 @@ stub.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+from types import MethodType, SimpleNamespace
 from typing import cast
 
 from albert_code.cli.textual_ui.app import VibeApp
@@ -34,7 +34,11 @@ def _make_stub(
         get_active_model=lambda: next(m for m in models if m.alias == active_alias),
     )
     agent_loop = SimpleNamespace(_last_resolved_model_alias=last_resolved)
-    return cast(VibeApp, SimpleNamespace(config=config, agent_loop=agent_loop))
+    stub = SimpleNamespace(config=config, agent_loop=agent_loop)
+    # Bind the real helper so the test exercises actual resolution logic
+    # rather than a duplicate. _format_model_label delegates to it.
+    stub._effective_active_model = MethodType(VibeApp._effective_active_model, stub)
+    return cast(VibeApp, stub)
 
 
 class TestFormatModelLabelPrimary:
@@ -115,7 +119,8 @@ class TestFormatModelLabelMissingConfig:
             active_model="ghost-model", models=[], get_active_model=_raise
         )
         agent_loop = SimpleNamespace(_last_resolved_model_alias=None)
-        stub = cast(VibeApp, SimpleNamespace(config=config, agent_loop=agent_loop))
+        stub = SimpleNamespace(config=config, agent_loop=agent_loop)
+        stub._effective_active_model = MethodType(VibeApp._effective_active_model, stub)
 
-        label = VibeApp._format_model_label(stub)
+        label = VibeApp._format_model_label(cast(VibeApp, stub))
         assert label == "⚙  ghost-model"

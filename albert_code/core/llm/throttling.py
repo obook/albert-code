@@ -331,7 +331,7 @@ class Throttler:
             self._blocked_until = max(
                 self._blocked_until, self._clock() + retry_after_seconds
             )
-        if limit_type in ("tpm", "rpm"):
+        if limit_type in {"tpm", "rpm"}:
             self._saturate_window(limit_type, model_alias)
         if model_alias is None:
             return
